@@ -11,15 +11,14 @@ if (useGCS) {
     
     const config = {
         bucket: process.env.GCS_BUCKET_NAME,
+        uniformBucketLevelAccess: true,
+        projectId: process.env.FIRESTORE_PROJECT_ID || 'darkbrood',
         filename: (req, file, cb) => {
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
             cb(null, 'uploads/' + uniqueSuffix + path.extname(file.originalname));
         }
     };
     
-    if (process.env.FIRESTORE_PROJECT_ID) {
-        config.projectId = process.env.FIRESTORE_PROJECT_ID;
-    }
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         config.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     }
