@@ -13,6 +13,9 @@ if (isProduction) {
     if (process.env.FIRESTORE_PROJECT_ID) {
         config.projectId = process.env.FIRESTORE_PROJECT_ID;
     }
+    if (process.env.FIRESTORE_DATABASE_ID) {
+        config.databaseId = process.env.FIRESTORE_DATABASE_ID;
+    }
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
         config.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
     }
