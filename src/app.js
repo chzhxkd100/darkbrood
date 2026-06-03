@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const session = require('express-session');
+const session = require('cookie-session');
 const path = require('path');
 const db = require('./db');
 const { upload, getImageUrl } = require('./storage');
@@ -10,10 +10,9 @@ const PORT = process.env.PORT || 8080;
 
 // Setup session
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'dark_solitude_secret_key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { maxAge: 1000 * 60 * 60 * 24 } // 24 hours
+    name: 'session',
+    keys: [process.env.SESSION_SECRET || 'dark_solitude_secret_key'],
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
 
 // Setup views and static folders
@@ -286,7 +285,7 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-    req.session.destroy();
+    req.session = null;
     res.redirect('/');
 });
 
