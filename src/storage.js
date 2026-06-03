@@ -7,7 +7,7 @@ const useGCS = (process.env.NODE_ENV === 'production' || process.env.GCS_BUCKET_
 
 if (useGCS) {
     console.log('Configuring Google Cloud Storage for image uploads...');
-    const multerGoogleStorage = require('multer-cloud-storage');
+    const MulterGoogleCloudStorage = require('multer-cloud-storage');
     
     const config = {
         bucket: process.env.GCS_BUCKET_NAME,
@@ -25,7 +25,7 @@ if (useGCS) {
     }
     
     upload = multer({
-        storage: multerGoogleStorage.storageEngine(config),
+        storage: new MulterGoogleCloudStorage(config),
         limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
     });
 } else {
