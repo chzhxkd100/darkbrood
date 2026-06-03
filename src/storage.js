@@ -14,8 +14,7 @@ if (useGCS) {
         filename: (req, file, cb) => {
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
             cb(null, 'uploads/' + uniqueSuffix + path.extname(file.originalname));
-        },
-        acl: 'publicRead'
+        }
     };
     
     if (process.env.FIRESTORE_PROJECT_ID) {
