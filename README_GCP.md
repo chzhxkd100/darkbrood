@@ -29,14 +29,18 @@ GCP 배포에 앞서 Google Cloud 콘솔에서 몇 가지 서비스를 활성화
 > [!NOTE]
 > GCP는 기본 가입 시 300달러 크레딧을 제공하며, 아래 사용하는 서비스들(Cloud Run, Firestore, GCS)은 대부분 매우 넉넉한 상시 무료 등급(Free Tier)을 제공하므로 트래픽이 몰리지 않는 이상 비용이 발생하지 않습니다.
 
-### 1) GCP 프로젝트 생성 및 API 활성화
+### 1) GCP 프로젝트 생성 및 API 활성화 & Artifact Registry 저장소 생성
 1.  [GCP Console](https://console.cloud.google.com/)에 로그인하여 신규 프로젝트를 생성합니다.
 2.  프로젝트 선택 후, 상단 검색창에서 다음 API를 각각 검색하여 **사용(Enable)** 설정합니다.
     *   **Cloud Run API**
     *   **Cloud Build API**
-    *   **Artifact Registry API** (또는 Container Registry)
+    *   **Artifact Registry API**
     *   **Cloud Firestore API**
     *   **Google Cloud Storage (GCS) API**
+3.  콘솔 메뉴에서 **Artifact Registry**로 이동하여 **저장소 만들기**를 클릭합니다.
+    *   **이름**: `darkbrood-repo` (GitHub Actions 워크플로우와 매칭)
+    *   **형식**: `Docker`
+    *   **위치 유형**: `Region` -> `asia-northeast3` (서울)을 선택하고 생성합니다.
 
 ### 2) 데이터베이스 설정 (Firestore)
 1.  콘솔 메뉴에서 **Firestore**로 이동합니다.
@@ -64,6 +68,7 @@ GitHub Actions에서 배포 작업을 수행하고, 애플리케이션이 Firest
     *   **Storage 객체 관리자 (Storage Object Admin)**: GCS 버킷에 이미지를 쓰고 읽는 권한
     *   **Cloud Datastore 사용자 (Cloud Datastore User)**: Firestore에 데이터를 쓰고 읽는 권한
     *   **서비스 계정 사용자 (Service Account User)**: 배포 시 서비스 계정을 주체로 실행하는 권한
+    *   **Artifact Registry 전송자 (Artifact Registry Writer)**: 컨테이너 이미지를 빌드 및 푸시하는 권한
 4.  계정 생성 완료 후 목록에서 생성된 계정을 클릭하고, **키(Keys) > 키 추가 > 새 키 만들기**를 눌러 **JSON** 형식을 내려받습니다.
 5.  다운로드된 `.json` 키 파일의 텍스트 내용을 통째로 복사해 두십시오 (GitHub Action Secret에 입력할 값입니다).
 
