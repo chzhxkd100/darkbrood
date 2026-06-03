@@ -56,8 +56,9 @@ module.exports = {
     getImageUrl: (req, file) => {
         if (!file) return null;
         if (useGCS) {
-            // For GCS, multer-cloud-storage returns the public URL in publicUrl or link
-            return file.publicUrl || file.link || `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME}/${file.filename}`;
+            // For GCS, multer-cloud-storage returns the public URL in linkUrl.
+            // Fallback to path to ensure the "uploads/" prefix is included.
+            return file.linkUrl || file.publicUrl || file.link || `https://storage.googleapis.com/${process.env.GCS_BUCKET_NAME}/${file.path || file.filename}`;
         } else {
             return `/uploads/${file.filename}`;
         }
