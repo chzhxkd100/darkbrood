@@ -1,0 +1,69 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>어둠의 심연 (Introduction)</h1>
+  </header>
+
+  <div class="glass-borders">
+    <div class="section-banners aero-borders">
+      <img
+        src="/images/dark_header_banner.png"
+        alt="Dark Obsidian Glow Header"
+        title="DarkBrood - 고독과 어둠의 심연"
+        id="siteInfoBanner"
+      />
+    </div>
+
+    <!-- Intro Text -->
+    <article class="styled-containers-headers aero-borders">
+      <p>
+        이곳은 비대해진 연결과 가식적인 긍정으로 가득 찬 현대 인터넷에 대한 거부이다. 
+        어둡고 투명한 유리 질감 속에 고독을 봉인한다. 
+        이 사이트는 2000년대 후반의 Frutiger Aero 디자인 감성을 그대로 담아냈으나, 
+        그 색채는 차갑고 어둡게 가라앉았다.
+      </p>
+
+      <p>
+        <strong>Diary 탭</strong>에는 본인(운영자)의 독설 섞인 일기와 개발 과정에서 겪는 냉소적인 기술 기록들이 채워질 것이고,  
+        <strong>Community 탭</strong>은 익명의 그림자 뒤에 숨은 불특정 다수가 아무런 제약 없이 증오와 외로움의 낙서를 쏟아내는 공간이다.
+      </p>
+
+      <p>
+        이곳에서는 광고도, 트래커도, 인위적인 친절도 없다. 오직 고독과 침묵, 그리고 차가운 시스템만이 존재할 뿐이다. 
+        가라앉은 앰비언트 사운드와 함께 깊은 심연으로 하강하라.
+      </p>
+    </article>
+  </div>
+
+  <!-- Recent Notices -->
+  <div class="glass-borders">
+    <article id="updates" class="styled-containers styled-containers-spaced aero-borders">
+      <h2>최근 안내 사항 (Recent Notices)</h2>
+      <div class="recent-updates-div styled-containers styled-containers-layer-2 aero-borders">
+        <% if (notices && notices.length > 0) { %>
+          <ul>
+            <% notices.forEach(notice => { %>
+              <li>
+                <p>
+                  <strong><%= new Date(notice.createdAt).toLocaleDateString('ko-KR') %></strong> - <%= notice.title %>
+                  <% if (isAdmin) { %>
+                    <form action="/post/<%= notice.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
+                      <input type="hidden" name="redirectType" value="" />
+                      <button type="submit" class="admin-del-btn" onclick="return confirm('이 안내 사항을 완전히 말살하시겠습니까?')">삭제</button>
+                    </form>
+                  <% } %>
+                </p>
+                <p class="notice-brief-content"><%= notice.content %></p>
+              </li>
+            <% }) %>
+          </ul>
+        <% } else { %>
+          <p style="text-align: center; color: #888; padding: 20px;">심연이 고요합니다. 아직 올라온 공지가 없습니다.</p>
+        <% } %>
+      </div>
+    </article>
+  </div>
+</section>
+
+<%- include('footer') %>

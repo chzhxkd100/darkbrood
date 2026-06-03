@@ -1,0 +1,63 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>공지사항 (Notice)</h1>
+  </header>
+
+  <% if (isAdmin) { %>
+    <!-- Notice Write Form (Admin Only) -->
+    <div class="glass-borders">
+      <div class="styled-containers aero-borders">
+        <h2>새 안내사항 작성 (Operators Only)</h2>
+        <form action="/post/new" method="POST" class="post-form">
+          <input type="hidden" name="type" value="notice" />
+          <div class="form-group">
+            <label for="title">제목</label>
+            <input type="text" id="title" name="title" required placeholder="안내사항 제목..." />
+          </div>
+          <div class="form-group">
+            <label for="content">본문</label>
+            <textarea id="content" name="content" required rows="5" placeholder="전달할 내용..."></textarea>
+          </div>
+          <button type="submit" class="submit-btn">심연에 공표하기</button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Notice list -->
+  <div class="notice-list-container">
+    <% if (notices && notices.length > 0) { %>
+      <% notices.forEach(notice => { %>
+        <div class="glass-borders">
+          <article class="styled-containers aero-borders">
+            <div class="post-header">
+              <span class="post-title"><%= notice.title %></span>
+              <span class="post-date"><%= new Date(notice.createdAt).toLocaleString('ko-KR') %></span>
+            </div>
+            <div class="post-content">
+              <%= notice.content %>
+            </div>
+            <% if (isAdmin) { %>
+              <div class="post-admin-actions">
+                <form action="/post/<%= notice.id %>/delete" method="POST">
+                  <input type="hidden" name="redirectType" value="notice" />
+                  <button type="submit" class="admin-del-btn" onclick="return confirm('이 안내사항을 영구 삭제하시겠습니까?')">삭제</button>
+                </form>
+              </div>
+            <% } %>
+          </article>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="glass-borders">
+        <div class="styled-containers aero-borders" style="text-align: center; color: #888; padding: 30px;">
+          안내사항이 존재하지 않습니다.
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('footer') %>

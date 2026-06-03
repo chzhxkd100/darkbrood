@@ -1,0 +1,33 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>시스템 인가 (Admin Access)</h1>
+  </header>
+
+  <div class="glass-borders" style="max-width: 400px; margin: 40px auto;">
+    <article class="styled-containers aero-borders">
+      <h2>관리자 비밀번호 입력</h2>
+      
+      <% if (error) { %>
+        <div class="error-alert">
+          <%= error %>
+        </div>
+      <% } %>
+
+      <form action="/login" method="POST" class="post-form">
+        <div class="form-group">
+          <label for="password">비밀번호 (Secret Key)</label>
+          <input type="password" id="password" name="password" required placeholder="비밀번호 입력..." autofocus />
+        </div>
+        <button type="submit" class="submit-btn" style="width: 100%;">심연 접속</button>
+      </form>
+      
+      <div style="text-align: center; margin-top: 15px;">
+        <a href="/" class="back-link">← 메인 페이지로 복귀</a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<%- include('footer') %>

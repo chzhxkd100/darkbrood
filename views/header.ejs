@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>DarkBrood - 고독과 어둠의 심연</title>
+    <meta name="description" content="고독과 어둠, 그리고 증오가 담긴 개인 공간." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Dark Aero styling -->
+    <link rel="stylesheet" href="/css/global.css" />
+  </head>
+
+  <body>
+    <!-- Overlay for background aesthetics -->
+    <div id="background"></div>
+    
+    <div id="websiteContainer">
+      <!-- Spacer -->
+      <div class="website-spacers"></div>
+      
+      <!-- Header -->
+      <header id="mainHeader">
+        <div class="header-logo-text">
+          <a href="/" title="홈으로">
+            <!-- Dark themed Vista-style logo -->
+            <svg id="logo" width="60" height="60" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 15C15 15 35 25 35 50C35 75 15 85 15 85V15Z" fill="url(#glassGrad1)" stroke="#b30000" stroke-width="2"/>
+              <path d="M85 15C85 15 65 25 65 50C65 75 85 85 85 85V15Z" fill="url(#glassGrad2)" stroke="#b30000" stroke-width="2"/>
+              <defs>
+                <linearGradient id="glassGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#3a0000" stop-opacity="0.8"/>
+                  <stop offset="100%" stop-color="#000000" stop-opacity="0.9"/>
+                </linearGradient>
+                <linearGradient id="glassGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#000000" stop-opacity="0.9"/>
+                  <stop offset="100%" stop-color="#2a003a" stop-opacity="0.8"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </a>
+          <div class="header-text">
+            <span class="header-title">DarkBrood Archive</span>
+            <span class="header-motto">고독과 어둠 속에서 피어난 증오의 기록들.</span>
+          </div>
+        </div>
+        <div class="toggle-buttons-divs">
+          <span id="hideNavbarButtonText">Menu &gt;</span>
+          <button id="navbarToggleButton">☰</button>
+        </div>
+      </header>
+
+      <div id="navAndContentContainer">
+        <!-- Left Side (Sidebar) -->
+        <aside>
+          <div id="navigationMenu">
+            <!-- Main Content -->
+            <nav class="nav-categories" aria-label="Navigation Category: Main Content">
+              <span class="navbar-titles">신전 (Shrine)</span>
+              <a href="/" class="<%= path === '/' ? 'nav-active' : 'nav-inactive' %>">
+                <span class="nav-bullet">✦</span> 소개 (Intro)
+              </a>
+              <a href="/notice" class="<%= path === '/notice' ? 'nav-active' : 'nav-inactive' %>">
+                <span class="nav-bullet">✦</span> 안내 (Notice)
+              </a>
+            </nav>
+
+            <!-- Personal Diary -->
+            <nav class="nav-categories" aria-label="Navigation Category: Operator Diary">
+              <span class="navbar-titles">사념 (Diary)</span>
+              <a href="/diary" class="<%= path === '/diary' ? 'nav-active' : 'nav-inactive' %>">
+                <span class="nav-bullet">✦</span> 일기 (Diary)
+              </a>
+            </nav>
+
+            <!-- Community -->
+            <nav class="nav-categories" aria-label="Navigation Category: Community">
+              <span class="navbar-titles">심연 (Community)</span>
+              <a href="/community" class="<%= path === '/community' ? 'nav-active' : 'nav-inactive' %>">
+                <span class="nav-bullet">✦</span> 광장 (Community)
+              </a>
+            </nav>
+
+            <!-- Operator Admin Links -->
+            <nav class="nav-categories" aria-label="Navigation Category: Admin">
+              <span class="navbar-titles">운영 (System)</span>
+              <% if (isAdmin) { %>
+                <a href="/logout" class="nav-inactive">
+                  <span class="nav-bullet">✦</span> 관리자 로그아웃
+                </a>
+              <% } else { %>
+                <a href="/login" class="<%= path === '/login' ? 'nav-active' : 'nav-inactive' %>">
+                  <span class="nav-bullet">✦</span> 관리자 로그인
+                </a>
+              <% } %>
+            </nav>
+
+            <!-- Audio & Theme Options -->
+            <div class="nav-categories nav-sound-fx-container">
+              <button id="navSoundToggle" aria-label="Sound FX Toggle">
+                소리 켜기 (Sounds Off)
+              </button>
+              <button id="navThemeChanger" aria-label="Theme Changer">
+                어둠 테마 전환 (Themes)
+              </button>
+            </div>
+            
+            <!-- Windows Media Player 11 style retro widget -->
+            <div class="wmp11-widget">
+              <div class="wmp-title">Media Player</div>
+              <div class="wmp-screen">
+                <div class="wmp-visualizer">
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                  <div class="bar"></div>
+                </div>
+                <div id="wmpTrackName" class="wmp-track-name">Solitude Ambient.mp3</div>
+              </div>
+              <div class="wmp-controls">
+                <button id="wmpPrev" class="wmp-btn">⏮</button>
+                <button id="wmpPlay" class="wmp-btn play-btn">▶</button>
+                <button id="wmpNext" class="wmp-btn">⏭</button>
+              </div>
+              <div class="wmp-volume-container">
+                <span>🔈</span>
+                <input type="range" id="wmpVolume" min="0" max="1" step="0.1" value="0.5" />
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Middle Content (Dynamic Body) -->
+        <main id="mainContent" aria-label="Main Content">

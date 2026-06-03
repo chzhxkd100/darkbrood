@@ -1,0 +1,103 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>익명 광장 (Community)</h1>
+  </header>
+
+  <!-- Anonymous Post Form -->
+  <div class="glass-borders">
+    <div class="styled-containers aero-borders">
+      <h2>익명 글 쓰기 (Post Anonymously)</h2>
+      <form action="/community/new" method="POST" enctype="multipart/form-data" class="post-form">
+        <div class="form-group">
+          <label for="title">제목 (선택)</label>
+          <input type="text" id="title" name="title" placeholder="글 제목..." />
+        </div>
+        <div class="form-group">
+          <label for="content">본문 (필수)</label>
+          <textarea id="content" name="content" required rows="4" placeholder="세상에 대한 증오나 한탄, 아무 낙서나 적으십시오..."></textarea>
+        </div>
+        <div class="form-group">
+          <label for="image">이미지 첨부 (최대 1개)</label>
+          <input type="file" id="image" name="image" accept="image/*" class="file-input" />
+        </div>
+        <button type="submit" class="submit-btn">심연에 투척하기</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Anonymous Posts list -->
+  <div class="community-list-container">
+    <% if (posts && posts.length > 0) { %>
+      <% posts.forEach(post => { %>
+        <div class="glass-borders">
+          <article class="styled-containers aero-borders community-post">
+            <!-- Post Info Header -->
+            <div class="post-header">
+              <span class="post-id">No. <%= post.id.substring(0, 8) %></span>
+              <span class="post-author">IP: <%= post.authorIp %></span>
+              <span class="post-date"><%= new Date(post.createdAt).toLocaleString('ko-KR') %></span>
+              <% if (isAdmin) { %>
+                <form action="/post/<%= post.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
+                  <input type="hidden" name="redirectType" value="community" />
+                  <button type="submit" class="admin-del-btn" onclick="return confirm('이 익명 글을 영구 삭제하시겠습니까?')">삭제</button>
+                </form>
+              <% } %>
+            </div>
+            
+            <!-- Post Subject -->
+            <% if (post.title && post.title !== '무제') { %>
+              <h3 class="community-subject"><%= post.title %></h3>
+            <% } %>
+
+            <!-- Post Body (Flex wrapper for image and text) -->
+            <div class="post-body">
+              <% if (post.imageUrl) { %>
+                <div class="post-image-container">
+                  <a href="<%= post.imageUrl %>" target="_blank" title="클릭하여 원본 보기">
+                    <img src="<%= post.imageUrl %>" alt="첨부 이미지" class="post-thumbnail" />
+                  </a>
+                </div>
+              <% } %>
+              <div class="post-text-content">
+                <%= post.content %>
+              </div>
+            </div>
+
+            <!-- Comments Section -->
+            <div class="comments-section styled-containers-layer-2 aero-borders">
+              <div class="comments-list">
+                <% if (post.comments && post.comments.length > 0) { %>
+                  <% post.comments.forEach(comment => { %>
+                    <div class="comment-item">
+                      <span class="comment-author">匿名 (<%= comment.authorIp %>)</span>
+                      <span class="comment-date"><%= new Date(comment.createdAt).toLocaleString('ko-KR') %></span>
+                      <div class="comment-text"><%= comment.content %></div>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <p class="no-comments">댓글이 없습니다. 첫 번째 파편을 던져보세요.</p>
+                <% } %>
+              </div>
+
+              <!-- Quick Comment Reply Form -->
+              <form action="/community/<%= post.id %>/comment" method="POST" class="comment-form">
+                <input type="text" name="content" required placeholder="익명 댓글 작성..." class="comment-input" />
+                <button type="submit" class="comment-submit-btn">댓글</button>
+              </form>
+            </div>
+          </article>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="glass-borders">
+        <div class="styled-containers aero-borders" style="text-align: center; color: #888; padding: 30px;">
+          광장이 텅 비어 있습니다. 익명으로 글을 남겨 어둠을 채워주세요.
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('footer') %>

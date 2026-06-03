@@ -1,0 +1,47 @@
+name: Deploy to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main  # 배포를 유도할 브랜치 지정 (예: main 또는 master)
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}  # GitHub Secrets에 등록 필요
+  SERVICE_NAME: darkbrood
+  REGION: asia-northeast3  # 서울 리전 (원하는 리전으로 변경 가능)
+
+jobs:
+  deploy:
+    name: Build and Deploy to Cloud Run
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}  # GCP 서비스 계정 JSON 키 (GitHub Secrets에 등록 필요)
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+
+    - name: Configure Docker for GCP
+      run: |
+        gcloud auth configure-docker --quiet
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+
+    - name: Deploy to Google Cloud Run
+      run: |
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+          --region ${{ env.REGION }} \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars="NODE_ENV=production,FIRESTORE_PROJECT_ID=${{ env.PROJECT_ID }},GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }},SESSION_SECRET=${{ secrets.SESSION_SECRET }}"

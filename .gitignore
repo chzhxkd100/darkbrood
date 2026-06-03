@@ -1,0 +1,14 @@
+# Dependency directories
+node_modules/
+
+# Local databases & uploads
+db.json
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Environment variables (Sensitive secrets)
+.env
+
+# Raw HTML files (unneeded reference files)
+original_site_info.html
+view-source_https___frutigeraeroarchive.org_site_info.html

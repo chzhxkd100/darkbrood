@@ -1,0 +1,63 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>사념 기록 (Diary / Tech Blog)</h1>
+  </header>
+
+  <% if (isAdmin) { %>
+    <!-- Diary Write Form (Admin Only) -->
+    <div class="glass-borders">
+      <div class="styled-containers aero-borders">
+        <h2>새 사념 기록 (Operators Only)</h2>
+        <form action="/post/new" method="POST" class="post-form">
+          <input type="hidden" name="type" value="diary" />
+          <div class="form-group">
+            <label for="title">사념 제목</label>
+            <input type="text" id="title" name="title" required placeholder="글 제목..." />
+          </div>
+          <div class="form-group">
+            <label for="content">생각의 파편</label>
+            <textarea id="content" name="content" required rows="7" placeholder="여기에 어둠과 코드를 기록한다..."></textarea>
+          </div>
+          <button type="submit" class="submit-btn">기록 각인하기</button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Diary list -->
+  <div class="diary-list-container">
+    <% if (posts && posts.length > 0) { %>
+      <% posts.forEach(post => { %>
+        <div class="glass-borders">
+          <article class="styled-containers aero-borders">
+            <div class="post-header">
+              <span class="post-title"><%= post.title %></span>
+              <span class="post-date"><%= new Date(post.createdAt).toLocaleString('ko-KR') %></span>
+            </div>
+            <div class="post-content diary-post-content">
+              <%= post.content %>
+            </div>
+            <% if (isAdmin) { %>
+              <div class="post-admin-actions">
+                <form action="/post/<%= post.id %>/delete" method="POST">
+                  <input type="hidden" name="redirectType" value="diary" />
+                  <button type="submit" class="admin-del-btn" onclick="return confirm('이 기록을 영구 말살하시겠습니까?')">삭제</button>
+                </form>
+              </div>
+            <% } %>
+          </article>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <div class="glass-borders">
+        <div class="styled-containers aero-borders" style="text-align: center; color: #888; padding: 30px;">
+          기록된 사념이 없습니다.
+        </div>
+      </div>
+    <% } %>
+  </div>
+</section>
+
+<%- include('footer') %>
