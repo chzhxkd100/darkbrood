@@ -110,7 +110,7 @@ app.get('/', async (req, res) => {
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.render('index', { notices });
     } catch (err) {
-        console.error(err);
+        console.error('Error in GET /:', err.stack || err);
         res.status(500).send('Database Error');
     }
 });
@@ -126,7 +126,7 @@ app.get('/diary', async (req, res) => {
         const posts = diarySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.render('diary', { posts });
     } catch (err) {
-        console.error(err);
+        console.error('Error in GET /diary:', err.stack || err);
         res.status(500).send('Database Error');
     }
 });
@@ -142,7 +142,7 @@ app.get('/notice', async (req, res) => {
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.render('notice', { notices });
     } catch (err) {
-        console.error(err);
+        console.error('Error in GET /notice:', err.stack || err);
         res.status(500).send('Database Error');
     }
 });
@@ -170,7 +170,7 @@ app.get('/community', async (req, res) => {
 
         res.render('community', { posts });
     } catch (err) {
-        console.error(err);
+        console.error('Error in GET /community:', err.stack || err);
         res.status(500).send('Database Error');
     }
 });
@@ -193,7 +193,7 @@ app.post('/post/new', requireAdmin, async (req, res) => {
         });
         res.redirect(`/${type}`);
     } catch (err) {
-        console.error(err);
+        console.error('Error in POST /post/new:', err.stack || err);
         res.status(500).send('Error creating post');
     }
 });
@@ -205,7 +205,7 @@ app.post('/post/:id/delete', requireAdmin, async (req, res) => {
         await db.collection('posts').doc(req.params.id).delete();
         res.redirect(`/${redirectType || ''}`);
     } catch (err) {
-        console.error(err);
+        console.error('Error in POST /post/:id/delete:', err.stack || err);
         res.status(500).send('Error deleting post');
     }
 });
@@ -235,7 +235,7 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
         });
         res.redirect('/community');
     } catch (err) {
-        console.error(err);
+        console.error('Error in POST /community/new:', err.stack || err);
         res.status(500).send('Error submitting post');
     }
 });
@@ -261,7 +261,7 @@ app.post('/community/:id/comment', async (req, res) => {
         });
         res.redirect('/community');
     } catch (err) {
-        console.error(err);
+        console.error('Error in POST /community/:id/comment:', err.stack || err);
         res.status(500).send('Error adding comment');
     }
 });
