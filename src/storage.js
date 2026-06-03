@@ -13,9 +13,10 @@ if (useGCS) {
         bucket: process.env.GCS_BUCKET_NAME,
         uniformBucketLevelAccess: true,
         projectId: process.env.FIRESTORE_PROJECT_ID || 'darkbrood',
+        destination: 'uploads',
         filename: (req, file, cb) => {
             const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            cb(null, 'uploads/' + uniqueSuffix + path.extname(file.originalname));
+            cb(null, uniqueSuffix + path.extname(file.originalname));
         }
     };
     
