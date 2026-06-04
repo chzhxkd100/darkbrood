@@ -26,42 +26,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
     
-    let lastMessageCount = 0;
+    let lastTimestamp = 0;
     let pollIntervalId = null;
     let idleTimerId = null;
     let isIdle = false;
+    let isChatVisible = true; // Tracks if the chat widget is visible in viewport
+    let isFetching = false;   // Prevents overlapping/duplicate requests
     
-    const POLL_RATE = 4000; // 4 seconds polling rate to save database reads
+    const POLL_RATE = 6000; // Increased poll rate to 6 seconds to reduce read counts
     const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
 
+    // Intersection Observer: stops polling when chat is out of view (e.g. scrolled down)
+    const chatWidget = document.querySelector('.chat-widget');
+    if (chatWidget && typeof IntersectionObserver !== 'undefined') {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                isChatVisible = entry.isIntersecting;
+                if (isChatVisible) {
+                    resetIdleTimer();
+                    startPolling();
+                } else {
+                    stopPolling();
+                }
+            });
+        }, { threshold: 0.05 });
+        observer.observe(chatWidget);
+    }
+
     async function loadChatMessages() {
-        if (!chatBox || isIdle || document.hidden) return;
+        // Skip fetching if hidden, idle, not in viewport, or another fetch is in progress
+        if (!chatBox || isIdle || document.hidden || !isChatVisible || isFetching) return;
+        
+        isFetching = true;
         try {
-            const res = await fetch('/chat/messages');
+            const url = lastTimestamp ? `/chat/messages?since=${lastTimestamp}` : '/chat/messages';
+            const res = await fetch(url);
             if (!res.ok) throw new Error('Failed to fetch messages');
             const messages = await res.json();
             
-            // Render messages
-            chatBox.innerHTML = messages.map(msg => {
-                const dateStr = new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                return `
-                    <div class="chat-msg">
-                        <div class="chat-msg-header">
-                            <span class="chat-msg-author">${msg.authorIp}</span>
-                            <span class="chat-msg-time">${dateStr}</span>
+            if (messages.length > 0) {
+                const newHTML = messages.map(msg => {
+                    const dateStr = new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    return `
+                        <div class="chat-msg">
+                            <div class="chat-msg-header">
+                                <span class="chat-msg-author">${msg.authorIp}</span>
+                                <span class="chat-msg-time">${dateStr}</span>
+                            </div>
+                            <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
                         </div>
-                        <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
-                    </div>
-                `;
-            }).join('');
+                    `;
+                }).join('');
 
-            // Scroll to bottom if new message arrived
-            if (messages.length !== lastMessageCount) {
+                if (lastTimestamp === 0) {
+                    // Initial load: render all 20 messages
+                    chatBox.innerHTML = newHTML;
+                } else {
+                    // Incremental update: append new messages only (no DOM thrashing)
+                    chatBox.insertAdjacentHTML('beforeend', newHTML);
+                }
+                
+                // Track cursor timestamp
+                lastTimestamp = messages[messages.length - 1].createdAt;
                 chatBox.scrollTop = chatBox.scrollHeight;
-                lastMessageCount = messages.length;
+            } else if (lastTimestamp === 0) {
+                chatBox.innerHTML = '<div style="text-align: center; color: #666; padding-top: 50px; font-size: 11px;">침묵만이 흐르는 심연입니다.</div>';
             }
         } catch (err) {
             console.error('Chat load error:', err);
+        } finally {
+            isFetching = false;
         }
     }
 
@@ -131,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const content = chatInput.value.trim();
-            if (!content) return;
+            if (!content || isFetching) return;
 
             chatInput.disabled = true;
             try {
@@ -144,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (res.ok) {
                     chatInput.value = '';
-                    // Force refresh and reset idle timer on manual post
                     resetIdleTimer();
                     await loadChatMessages();
                 } else {

@@ -340,17 +340,31 @@ app.post('/community/:id/comment', async (req, res) => {
 // REAL-TIME CHAT (SIDEBAR ECHOES)
 // ----------------------------------------------------
 
-// Get latest 20 chat messages
+// Get chat messages (supports cursor-based polling via since timestamp)
 app.get('/chat/messages', async (req, res) => {
     try {
-        const snapshot = await db.collection('chat')
-            .orderBy('createdAt', 'desc')
-            .get();
+        const since = req.query.since ? parseInt(req.query.since, 10) : null;
         
-        const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Slicing first 20 and reversing to chronological order
-        const latest20 = rawMsgs.slice(0, 20).reverse();
-        res.json(latest20);
+        if (since && !isNaN(since)) {
+            // Fetch only new messages since the last received message timestamp
+            const snapshot = await db.collection('chat')
+                .where('createdAt', '>', since)
+                .orderBy('createdAt', 'asc')
+                .limit(50)
+                .get();
+            const newMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            return res.json(newMsgs);
+        } else {
+            // Initial load: fetch latest 20 messages, ordering by createdAt descending
+            const snapshot = await db.collection('chat')
+                .orderBy('createdAt', 'desc')
+                .limit(20)
+                .get();
+            
+            const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const latest20 = rawMsgs.reverse(); // Display chronologically
+            return res.json(latest20);
+        }
     } catch (err) {
         console.error('Error fetching chat messages:', err.stack || err);
         res.status(500).json({ error: 'Database Error' });
