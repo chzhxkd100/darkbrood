@@ -4,7 +4,8 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "node src/app.js"
+    "dev": "node src/app.js",
+    "deploy:hosting": "npx firebase-tools deploy --only hosting"
   },
   "keywords": [],
   "author": "",

@@ -12,3 +12,7 @@ public/uploads/*
 # Raw HTML files (unneeded reference files)
 original_site_info.html
 view-source_https___frutigeraeroarchive.org_site_info.html
+
+# Firebase cache
+.firebase/
+
