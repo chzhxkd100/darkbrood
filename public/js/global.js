@@ -20,16 +20,22 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 2. Real-time Chat Polling (Sidebar Widget)
+    // 2. Real-time Chat Polling (Sidebar Widget) with Smart Cost-Saving
     // ==========================================================================
     const chatBox = document.getElementById('chatBox');
     const chatForm = document.getElementById('chatForm');
     const chatInput = document.getElementById('chatInput');
     
     let lastMessageCount = 0;
+    let pollIntervalId = null;
+    let idleTimerId = null;
+    let isIdle = false;
+    
+    const POLL_RATE = 4000; // 4 seconds polling rate to save database reads
+    const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
 
     async function loadChatMessages() {
-        if (!chatBox) return;
+        if (!chatBox || isIdle || document.hidden) return;
         try {
             const res = await fetch('/chat/messages');
             if (!res.ok) throw new Error('Failed to fetch messages');
@@ -68,10 +74,57 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     }
 
-    if (chatBox) {
+    function startPolling() {
+        if (pollIntervalId) return;
         loadChatMessages();
-        // Poll every 3 seconds
-        setInterval(loadChatMessages, 3000);
+        pollIntervalId = setInterval(loadChatMessages, POLL_RATE);
+    }
+
+    function stopPolling() {
+        if (pollIntervalId) {
+            clearInterval(pollIntervalId);
+            pollIntervalId = null;
+        }
+    }
+
+    // Reset idle timer and resume polling if needed
+    function resetIdleTimer() {
+        clearTimeout(idleTimerId);
+        
+        if (isIdle) {
+            isIdle = false;
+            if (chatInput) chatInput.placeholder = "메아리 투척...";
+            startPolling();
+        }
+        
+        idleTimerId = setTimeout(goIdle, IDLE_LIMIT);
+    }
+
+    function goIdle() {
+        isIdle = true;
+        stopPolling();
+        if (chatInput) chatInput.placeholder = "대기 모드 (움직여서 활성화)";
+    }
+
+    // Visibility API support (Tab switching / Minimizing)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            stopPolling();
+        } else {
+            resetIdleTimer();
+            startPolling();
+        }
+    });
+
+    // Detect user interactions to reset idle timer
+    const activityEvents = ['mousemove', 'keydown', 'scroll', 'click', 'touchstart'];
+    activityEvents.forEach(evt => {
+        window.addEventListener(evt, resetIdleTimer, { passive: true });
+    });
+
+    if (chatBox) {
+        startPolling();
+        resetIdleTimer();
     }
 
     if (chatForm) {
@@ -91,6 +144,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 if (res.ok) {
                     chatInput.value = '';
+                    // Force refresh and reset idle timer on manual post
+                    resetIdleTimer();
                     await loadChatMessages();
                 } else {
                     console.error('Failed to send message');
