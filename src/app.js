@@ -15,7 +15,10 @@ app.set('trust proxy', 1);
 app.use(session({
     name: '__session',
     keys: [process.env.SESSION_SECRET || 'dark_solitude_secret_key'],
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    httpOnly: true
 }));
 
 // Setup views and static folders
@@ -25,10 +28,11 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Pass session variables to EJS templates globally
+// Pass session variables to EJS templates globally & disable CDN caching for dynamic routes
 app.use((req, res, next) => {
     res.locals.isAdmin = req.session.isAdmin || false;
     res.locals.path = req.path;
+    res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     next();
 });
 
