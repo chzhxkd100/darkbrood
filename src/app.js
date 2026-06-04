@@ -13,7 +13,7 @@ app.set('trust proxy', 1);
 
 // Setup session
 app.use(session({
-    name: 'session',
+    name: '__session',
     keys: [process.env.SESSION_SECRET || 'dark_solitude_secret_key'],
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }));
