@@ -69,6 +69,7 @@ GitHub Actions에서 배포 작업을 수행하고, 애플리케이션이 Firest
     *   **Cloud Datastore 사용자 (Cloud Datastore User)**: Firestore에 데이터를 쓰고 읽는 권한
     *   **서비스 계정 사용자 (Service Account User)**: 배포 시 서비스 계정을 주체로 실행하는 권한
     *   **Artifact Registry 전송자 (Artifact Registry Writer)**: 컨테이너 이미지를 빌드 및 푸시하는 권한
+    *   **Firebase Hosting 관리자 (Firebase Hosting Admin)**: Firebase Hosting 설정을 배포하는 권한
 4.  계정 생성 완료 후 목록에서 생성된 계정을 클릭하고, **키(Keys) > 키 추가 > 새 키 만들기**를 눌러 **JSON** 형식을 내려받습니다.
 5.  다운로드된 `.json` 키 파일의 텍스트 내용을 통째로 복사해 두십시오 (GitHub Action Secret에 입력할 값입니다).
 
