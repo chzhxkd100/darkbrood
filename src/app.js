@@ -8,6 +8,9 @@ const { upload, getImageUrl } = require('./storage');
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+// Enable trusting reverse proxy headers (crucial for secure cookies behind Firebase Hosting proxy)
+app.set('trust proxy', 1);
+
 // Setup session
 app.use(session({
     name: 'session',
@@ -309,13 +312,61 @@ app.post('/community/:id/comment', async (req, res) => {
 });
 
 // ----------------------------------------------------
+// REAL-TIME CHAT (SIDEBAR ECHOES)
+// ----------------------------------------------------
+
+// Get latest 20 chat messages
+app.get('/chat/messages', async (req, res) => {
+    try {
+        const snapshot = await db.collection('chat')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Slicing first 20 and reversing to chronological order
+        const latest20 = rawMsgs.slice(0, 20).reverse();
+        res.json(latest20);
+    } catch (err) {
+        console.error('Error fetching chat messages:', err.stack || err);
+        res.status(500).json({ error: 'Database Error' });
+    }
+});
+
+// Send a new chat message (anonymous with masked IP and 24h TTL field)
+app.post('/chat/send', async (req, res) => {
+    const { content } = req.body;
+    if (!content || content.trim() === '') {
+        return res.status(400).json({ error: 'Content is required' });
+    }
+    try {
+        const ipParts = req.ip.split('.');
+        const maskedIp = ipParts.length >= 2 ? `${ipParts[0]}.${ipParts[1]}.xxx.xxx` : '익명';
+        
+        const createdAt = Date.now();
+        // TTL policy helper: expiration set to 24 hours in the future
+        const expireAt = createdAt + 24 * 60 * 60 * 1000;
+        
+        await db.collection('chat').add({
+            content: content.substring(0, 100),
+            authorIp: maskedIp,
+            createdAt,
+            expireAt
+        });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error in POST /chat/send:', err.stack || err);
+        res.status(500).json({ error: 'Database Error' });
+    }
+});
+
+// ----------------------------------------------------
 // ADMIN AUTHENTICATION
 // ----------------------------------------------------
-app.get('/login', (req, res) => {
+app.get('/admin', (req, res) => {
     res.render('login', { error: null });
 });
 
-app.post('/login', (req, res) => {
+app.post('/admin', (req, res) => {
     const { password } = req.body;
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     
@@ -325,6 +376,10 @@ app.post('/login', (req, res) => {
     } else {
         res.render('login', { error: '잘못된 비밀번호입니다. 심연의 접근이 거부되었습니다.' });
     }
+});
+
+app.get('/login', (req, res) => {
+    res.redirect('/admin');
 });
 
 app.get('/logout', (req, res) => {

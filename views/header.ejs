@@ -81,52 +81,26 @@
               </a>
             </nav>
 
-            <!-- Operator Admin Links -->
-            <nav class="nav-categories" aria-label="Navigation Category: Admin">
-              <span class="navbar-titles">운영 (System)</span>
-              <% if (isAdmin) { %>
+            <!-- Operator Admin Links (Only show when logged in) -->
+            <% if (isAdmin) { %>
+              <nav class="nav-categories" aria-label="Navigation Category: Admin">
+                <span class="navbar-titles">운영 (System)</span>
                 <a href="/logout" class="nav-inactive">
                   <span class="nav-bullet">✦</span> 관리자 로그아웃
                 </a>
-              <% } else { %>
-                <a href="/login" class="<%= path === '/login' ? 'nav-active' : 'nav-inactive' %>">
-                  <span class="nav-bullet">✦</span> 관리자 로그인
-                </a>
-              <% } %>
-            </nav>
+              </nav>
+            <% } %>
 
-            <!-- Audio & Theme Options -->
-            <div class="nav-categories nav-sound-fx-container">
-              <button id="navSoundToggle" aria-label="Sound FX Toggle">
-                소리 켜기 (Sounds Off)
-              </button>
-              <button id="navThemeChanger" aria-label="Theme Changer">
-                어둠 테마 전환 (Themes)
-              </button>
-            </div>
-            
-            <!-- Windows Media Player 11 style retro widget -->
-            <div class="wmp11-widget">
-              <div class="wmp-title">Media Player</div>
-              <div class="wmp-screen">
-                <div class="wmp-visualizer">
-                  <div class="bar"></div>
-                  <div class="bar"></div>
-                  <div class="bar"></div>
-                  <div class="bar"></div>
-                  <div class="bar"></div>
-                </div>
-                <div id="wmpTrackName" class="wmp-track-name">Solitude Ambient.mp3</div>
+            <!-- Chat Widget (Replaces WMP11 & Audio/Theme toggles) -->
+            <div class="chat-widget">
+              <div class="chat-title">심연의 메아리 (Echoes)</div>
+              <div class="chat-box" id="chatBox">
+                <div style="text-align: center; color: #666; padding-top: 50px; font-size: 11px;">연결 중...</div>
               </div>
-              <div class="wmp-controls">
-                <button id="wmpPrev" class="wmp-btn">⏮</button>
-                <button id="wmpPlay" class="wmp-btn play-btn">▶</button>
-                <button id="wmpNext" class="wmp-btn">⏭</button>
-              </div>
-              <div class="wmp-volume-container">
-                <span>🔈</span>
-                <input type="range" id="wmpVolume" min="0" max="1" step="0.1" value="0.5" />
-              </div>
+              <form id="chatForm" class="chat-input-container">
+                <input type="text" id="chatInput" maxlength="100" placeholder="메아리 투척..." required autocomplete="off" />
+                <button type="submit">전송</button>
+              </form>
             </div>
           </div>
         </aside>
