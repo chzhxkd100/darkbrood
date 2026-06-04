@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Synthesize retro UI sounds using simple oscillators
     function playAeroSound(type) {
+        return; // Disabled cute synthesized sounds as requested
         if (!soundEnabled) return;
         
         try {

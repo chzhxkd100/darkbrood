@@ -6,24 +6,45 @@
   </header>
 
   <% if (isAdmin) { %>
+    <!-- Toggle write form button -->
+    <div style="margin-bottom: 20px;">
+      <button type="button" class="submit-btn" id="toggleWriteBtn" onclick="toggleWriteForm()">새 안내사항 작성</button>
+    </div>
+
     <!-- Notice Write Form (Admin Only) -->
-    <div class="glass-borders">
-      <div class="styled-containers aero-borders">
-        <h2>새 안내사항 작성 (Operators Only)</h2>
-        <form action="/post/new" method="POST" class="post-form">
-          <input type="hidden" name="type" value="notice" />
-          <div class="form-group">
-            <label for="title">제목</label>
-            <input type="text" id="title" name="title" required placeholder="안내사항 제목..." />
-          </div>
-          <div class="form-group">
-            <label for="content">본문</label>
-            <textarea id="content" name="content" required rows="5" placeholder="전달할 내용..."></textarea>
-          </div>
-          <button type="submit" class="submit-btn">심연에 공표하기</button>
-        </form>
+    <div id="writeFormContainer" style="display: none;">
+      <div class="glass-borders" style="margin-bottom: 20px;">
+        <div class="styled-containers aero-borders">
+          <h2>새 안내사항 작성 (Operators Only)</h2>
+          <form action="/post/new" method="POST" class="post-form">
+            <input type="hidden" name="type" value="notice" />
+            <div class="form-group">
+              <label for="title">제목</label>
+              <input type="text" id="title" name="title" required placeholder="안내사항 제목..." />
+            </div>
+            <div class="form-group">
+              <label for="content">본문</label>
+              <textarea id="content" name="content" required rows="5" placeholder="전달할 내용..."></textarea>
+            </div>
+            <button type="submit" class="submit-btn">심연에 공표하기</button>
+          </form>
+        </div>
       </div>
     </div>
+
+    <script>
+      function toggleWriteForm() {
+        var container = document.getElementById('writeFormContainer');
+        var btn = document.getElementById('toggleWriteBtn');
+        if (container.style.display === 'none') {
+          container.style.display = 'block';
+          btn.textContent = '작성 취소';
+        } else {
+          container.style.display = 'none';
+          btn.textContent = '새 안내사항 작성';
+        }
+      }
+    </script>
   <% } %>
 
   <!-- Notice list -->

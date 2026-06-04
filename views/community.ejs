@@ -5,27 +5,48 @@
     <h1>익명 광장 (Community)</h1>
   </header>
 
+  <!-- Toggle write form button -->
+  <div style="margin-bottom: 20px;">
+    <button type="button" class="submit-btn" id="toggleWriteBtn" onclick="toggleWriteForm()">새 글 쓰기</button>
+  </div>
+
   <!-- Anonymous Post Form -->
-  <div class="glass-borders">
-    <div class="styled-containers aero-borders">
-      <h2>익명 글 쓰기 (Post Anonymously)</h2>
-      <form action="/community/new" method="POST" enctype="multipart/form-data" class="post-form">
-        <div class="form-group">
-          <label for="title">제목 (선택)</label>
-          <input type="text" id="title" name="title" placeholder="글 제목..." />
-        </div>
-        <div class="form-group">
-          <label for="content">본문 (필수)</label>
-          <textarea id="content" name="content" required rows="4" placeholder="세상에 대한 증오나 한탄, 아무 낙서나 적으십시오..."></textarea>
-        </div>
-        <div class="form-group">
-          <label for="image">이미지 첨부 (최대 1개)</label>
-          <input type="file" id="image" name="image" accept="image/*" class="file-input" />
-        </div>
-        <button type="submit" class="submit-btn">심연에 투척하기</button>
-      </form>
+  <div id="writeFormContainer" style="display: none;">
+    <div class="glass-borders" style="margin-bottom: 20px;">
+      <div class="styled-containers aero-borders">
+        <h2>익명 글 쓰기 (Post Anonymously)</h2>
+        <form action="/community/new" method="POST" enctype="multipart/form-data" class="post-form">
+          <div class="form-group">
+            <label for="title">제목 (선택)</label>
+            <input type="text" id="title" name="title" placeholder="글 제목..." />
+          </div>
+          <div class="form-group">
+            <label for="content">본문 (필수)</label>
+            <textarea id="content" name="content" required rows="4" placeholder="세상에 대한 증오나 한탄, 아무 낙서나 적으십시오..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="image">이미지 첨부 (최대 1개)</label>
+            <input type="file" id="image" name="image" accept="image/*" class="file-input" />
+          </div>
+          <button type="submit" class="submit-btn">심연에 투척하기</button>
+        </form>
+      </div>
     </div>
   </div>
+
+  <script>
+    function toggleWriteForm() {
+      var container = document.getElementById('writeFormContainer');
+      var btn = document.getElementById('toggleWriteBtn');
+      if (container.style.display === 'none') {
+        container.style.display = 'block';
+        btn.textContent = '작성 취소';
+      } else {
+        container.style.display = 'none';
+        btn.textContent = '새 글 쓰기';
+      }
+    }
+  </script>
 
   <!-- Anonymous Posts list -->
   <div class="community-list-container">
@@ -98,6 +119,27 @@
       </div>
     <% } %>
   </div>
+
+  <!-- Pagination Controls -->
+  <% if (totalPages > 1) { %>
+    <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 25px; margin-bottom: 25px;">
+      <% if (currentPage > 1) { %>
+        <a href="/community?page=<%= currentPage - 1 %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;">이전</a>
+      <% } %>
+      
+      <% for (let i = 1; i <= totalPages; i++) { %>
+        <% if (i === currentPage) { %>
+          <span class="submit-btn" style="padding: 6px 12px; font-size: 0.9rem; background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); cursor: default; box-shadow: 0 0 10px rgba(255,255,255,0.3);"><%= i %></span>
+        <% } else { %>
+          <a href="/community?page=<%= i %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;"><%= i %></a>
+        <% } %>
+      <% } %>
+
+      <% if (currentPage < totalPages) { %>
+        <a href="/community?page=<%= currentPage + 1 %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;">다음</a>
+      <% } %>
+    </div>
+  <% } %>
 </section>
 
 <%- include('footer') %>

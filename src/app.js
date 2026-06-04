@@ -107,7 +107,18 @@ app.get('/', async (req, res) => {
             .get();
         
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.render('index', { notices });
+        
+        let introText = null;
+        try {
+            const introDoc = await db.collection('config').doc('intro').get();
+            if (introDoc.exists) {
+                introText = introDoc.data().content;
+            }
+        } catch (e) {
+            console.error('Error fetching intro text:', e);
+        }
+        
+        res.render('index', { notices, introText });
     } catch (err) {
         console.error('Error in GET /:', err.stack || err);
         res.status(500).send('Database Error');
@@ -154,7 +165,20 @@ app.get('/community', async (req, res) => {
             .orderBy('createdAt', 'desc')
             .get();
         
-        const posts = communitySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const allPosts = communitySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Pagination logic
+        const currentPage = parseInt(req.query.page) || 1;
+        const limit = 5; // 5 posts per page
+        const totalPosts = allPosts.length;
+        const totalPages = Math.ceil(totalPosts / limit) || 1;
+        
+        // Safe bounds for currentPage
+        const page = Math.max(1, Math.min(currentPage, totalPages));
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        
+        const posts = allPosts.slice(startIndex, endIndex);
         
         // Fetch comments for all posts
         const allCommentsSnap = await db.collection('comments')
@@ -167,7 +191,11 @@ app.get('/community', async (req, res) => {
             post.comments = allComments.filter(comment => comment.postId === post.id);
         });
 
-        res.render('community', { posts });
+        res.render('community', { 
+            posts, 
+            currentPage: page, 
+            totalPages 
+        });
     } catch (err) {
         console.error('Error in GET /community:', err.stack || err);
         res.status(500).send('Database Error');
@@ -206,6 +234,21 @@ app.post('/post/:id/delete', requireAdmin, async (req, res) => {
     } catch (err) {
         console.error('Error in POST /post/:id/delete:', err.stack || err);
         res.status(500).send('Error deleting post');
+    }
+});
+
+// Update Introduction (Admin only)
+app.post('/intro/update', requireAdmin, async (req, res) => {
+    const { content } = req.body;
+    try {
+        await db.collection('config').doc('intro').set({
+            content: content || '',
+            updatedAt: Date.now()
+        });
+        res.redirect('/');
+    } catch (err) {
+        console.error('Error in POST /intro/update:', err.stack || err);
+        res.status(500).send('Error updating introduction');
     }
 });
 

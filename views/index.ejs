@@ -17,22 +17,56 @@
 
     <!-- Intro Text -->
     <article class="styled-containers-headers aero-borders">
-      <p>
-        이곳은 비대해진 연결과 가식적인 긍정으로 가득 찬 현대 인터넷에 대한 거부이다. 
-        어둡고 투명한 유리 질감 속에 고독을 봉인한다. 
-        이 사이트는 2000년대 후반의 Frutiger Aero 디자인 감성을 그대로 담아냈으나, 
-        그 색채는 차갑고 어둡게 가라앉았다.
-      </p>
+      <div id="introDisplay">
+        <% if (introText) { %>
+          <p><%- introText.replace(/\r\n|\n/g, '<br>') %></p>
+        <% } else { %>
+          <p>
+            이곳은 비대해진 연결과 가식적인 긍정으로 가득 찬 현대 인터넷에 대한 거부이다. 
+            어둡고 투명한 유리 질감 속에 고독을 봉인한다. 
+            이 사이트는 2000년대 후반의 Frutiger Aero 디자인 감성을 그대로 담아냈으나, 
+            그 색채는 차갑고 어둡게 가라앉았다.
+          </p>
 
-      <p>
-        <strong>Diary 탭</strong>에는 본인(운영자)의 독설 섞인 일기와 개발 과정에서 겪는 냉소적인 기술 기록들이 채워질 것이고,  
-        <strong>Community 탭</strong>은 익명의 그림자 뒤에 숨은 불특정 다수가 아무런 제약 없이 증오와 외로움의 낙서를 쏟아내는 공간이다.
-      </p>
+          <p>
+            <strong>Diary 탭</strong>에는 본인(운영자)의 독설 섞인 일기와 개발 과정에서 겪는 냉소적인 기술 기록들이 채워질 것이고,  
+            <strong>Community 탭</strong>은 익명의 그림자 뒤에 숨은 불특정 다수가 아무런 제약 없이 증오와 외로움의 낙서를 쏟아내는 공간이다.
+          </p>
 
-      <p>
-        이곳에서는 광고도, 트래커도, 인위적인 친절도 없다. 오직 고독과 침묵, 그리고 차가운 시스템만이 존재할 뿐이다. 
-        가라앉은 앰비언트 사운드와 함께 깊은 심연으로 하강하라.
-      </p>
+          <p>
+            이곳에서는 광고도, 트래커도, 인위적인 친절도 없다. 오직 고독과 침묵, 그리고 차가운 시스템만이 존재할 뿐이다. 
+            가라앉은 앰비언트 사운드와 함께 깊은 심연으로 하강하라.
+          </p>
+        <% } %>
+      </div>
+
+      <% if (isAdmin) { %>
+        <div style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px;">
+          <button type="button" class="submit-btn" id="editIntroBtn" onclick="toggleIntroEdit()" style="font-size: 0.8rem; padding: 4px 8px;">소개 글 편집</button>
+          
+          <form id="introEditForm" action="/intro/update" method="POST" style="display: none; margin-top: 10px;">
+            <textarea name="content" required class="styled-containers styled-containers-layer-2 aero-borders" style="width: 100%; min-height: 140px; background: rgba(0,0,0,0.5); color: #fff; padding: 10px; margin-bottom: 8px; box-sizing: border-box; font-family: inherit; resize: vertical;"><%= introText || '이곳은 비대해진 연결과 가식적인 긍정으로 가득 찬 현대 인터넷에 대한 거부이다. 어둡고 투명한 유리 질감 속에 고독을 봉인한다. 이 사이트는 2000년대 후반의 Frutiger Aero 디자인 감성을 그대로 담아냈으나, 그 색채는 차갑고 어둡게 가라앉았다.\n\nDiary 탭에는 본인(운영자)의 독설 섞인 일기와 개발 과정에서 겪는 냉소적인 기술 기록들이 채워질 것이고, Community 탭은 익명의 그림자 뒤에 숨은 불특정 다수가 아무런 제약 없이 증오와 외로움의 낙서를 쏟아내는 공간이다.\n\n이곳에서는 광고도, 트래커도, 인위적인 친절도 없다. 오직 고독과 침묵, 그리고 차가운 시스템만이 존재할 뿐이다. 가라앉은 앰비언트 사운드와 함께 깊은 심연으로 하강하라.' %></textarea>
+            <button type="submit" class="submit-btn" style="font-size: 0.8rem; padding: 4px 10px;">저장</button>
+            <button type="button" class="submit-btn" onclick="toggleIntroEdit()" style="font-size: 0.8rem; padding: 4px 10px; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2);">취소</button>
+          </form>
+        </div>
+        <script>
+          function toggleIntroEdit() {
+            var form = document.getElementById('introEditForm');
+            var display = document.getElementById('introDisplay');
+            var btn = document.getElementById('editIntroBtn');
+            if (form.style.display === 'none') {
+              form.style.display = 'block';
+              display.style.display = 'none';
+              btn.style.display = 'none';
+            } else {
+              form.style.display = 'none';
+              display.style.display = 'block';
+              btn.style.display = 'inline-block';
+            }
+          }
+        </script>
+      <% } %>
     </article>
   </div>
 
