@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express = require('express');
-const session = require('cookie-session');
+const crypto = require('crypto');
 const path = require('path');
 const db = require('./db');
 const { upload, getImageUrl } = require('./storage');
@@ -11,15 +11,36 @@ const PORT = process.env.PORT || 8080;
 // Enable trusting reverse proxy headers (crucial for secure cookies behind Firebase Hosting proxy)
 app.set('trust proxy', 1);
 
-// Setup session
-app.use(session({
-    name: '__session',
-    keys: [process.env.SESSION_SECRET || 'dark_solitude_secret_key'],
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    httpOnly: true
-}));
+// Custom single-cookie parser and verifier (to bypass Firebase Hosting stripping __session.sig)
+app.use((req, res, next) => {
+    const rawCookies = req.headers.cookie || '';
+    const matches = rawCookies.match(/(?:^|; )__session=([^;]*)/);
+    const cookieValue = matches ? decodeURIComponent(matches[1]) : null;
+    
+    req.session = {}; // Define empty session object by default
+    
+    if (cookieValue) {
+        const parts = cookieValue.split('.');
+        if (parts.length === 2) {
+            const [payload, signature] = parts;
+            const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
+            const expectedSig = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+            
+            if (signature === expectedSig) {
+                try {
+                    const data = JSON.parse(Buffer.from(payload, 'base64').toString('utf8'));
+                    // Check if session has expired (24h)
+                    if (data.createdAt && Date.now() - data.createdAt < 24 * 60 * 60 * 1000) {
+                        req.session = data;
+                    }
+                } catch (e) {
+                    console.error('Session parsing error:', e);
+                }
+            }
+        }
+    }
+    next();
+});
 
 // Setup views and static folders
 app.set('view engine', 'ejs');
@@ -375,7 +396,14 @@ app.post('/admin', (req, res) => {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     
     if (password === adminPassword) {
-        req.session.isAdmin = true;
+        // Encode and sign session state into a single __session cookie
+        const payload = Buffer.from(JSON.stringify({ isAdmin: true, createdAt: Date.now() })).toString('base64');
+        const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
+        const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+        const cookieValue = payload + '.' + signature;
+        
+        const maxAgeSeconds = 24 * 60 * 60; // 24 hours
+        res.setHeader('Set-Cookie', `__session=${cookieValue}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
         res.redirect('/');
     } else {
         res.render('login', { error: '잘못된 비밀번호입니다. 심연의 접근이 거부되었습니다.' });
@@ -387,7 +415,8 @@ app.get('/login', (req, res) => {
 });
 
 app.get('/logout', (req, res) => {
-    req.session = null;
+    // Delete the __session cookie
+    res.setHeader('Set-Cookie', `__session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
     res.redirect('/');
 });
 
