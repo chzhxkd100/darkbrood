@@ -55,7 +55,7 @@
           <article class="styled-containers aero-borders">
             <div class="post-header">
               <span class="post-title"><%= notice.title %></span>
-              <span class="post-date"><%= new Date(notice.createdAt).toLocaleString('ko-KR') %></span>
+              <span class="post-date" data-timestamp="<%= notice.createdAt %>"></span>
             </div>
             <div class="post-content">
               <%= notice.content %>

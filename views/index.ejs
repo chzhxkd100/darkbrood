@@ -80,7 +80,7 @@
             <% notices.forEach(notice => { %>
               <li>
                 <p>
-                  <strong><%= new Date(notice.createdAt).toLocaleDateString('ko-KR') %></strong> - <%= notice.title %>
+                  <strong class="post-date" data-timestamp="<%= notice.createdAt %>"></strong> - <%= notice.title %>
                   <% if (isAdmin) { %>
                     <form action="/post/<%= notice.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
                       <input type="hidden" name="redirectType" value="" />

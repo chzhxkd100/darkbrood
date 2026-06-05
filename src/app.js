@@ -388,6 +388,8 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
         if (req.session.user) {
             postData.authorNickname = req.session.user.nickname;
             postData.authorId = req.session.user.id;
+        } else if (req.session.isAdmin) {
+            postData.authorNickname = '운영자';
         }
 
         await db.collection('posts').add(postData);
@@ -418,6 +420,8 @@ app.post('/community/:id/comment', async (req, res) => {
         if (req.session.user) {
             commentData.authorNickname = req.session.user.nickname;
             commentData.authorId = req.session.user.id;
+        } else if (req.session.isAdmin) {
+            commentData.authorNickname = '운영자';
         }
 
         await db.collection('comments').add(commentData);
@@ -483,6 +487,8 @@ app.post('/chat/send', async (req, res) => {
 
         if (req.session.user) {
             chatData.authorNickname = req.session.user.nickname;
+        } else if (req.session.isAdmin) {
+            chatData.authorNickname = '운영자';
         }
 
         await db.collection('chat').add(chatData);

@@ -1,4 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Format dates client-side to handle local timezone correctly
+    document.querySelectorAll('.post-date, .comment-date').forEach(el => {
+        const timestamp = el.getAttribute('data-timestamp');
+        if (timestamp) {
+            const date = new Date(parseInt(timestamp, 10));
+            if (el.tagName === 'STRONG') {
+                el.textContent = date.toLocaleDateString('ko-KR');
+            } else {
+                el.textContent = date.toLocaleString('ko-KR');
+            }
+        }
+    });
+
     // ==========================================================================
     // 1. Mobile Menu Toggle
     // ==========================================================================
