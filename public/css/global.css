@@ -942,6 +942,27 @@ aside {
     bottom: 0;
 }
 
+#sidebarOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    pointer-events: none;
+}
+
+#sidebarOverlay.active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
 /* ==========================================================================
    Responsive Adaptation (Mobile View)
    ========================================================================== */
@@ -999,6 +1020,8 @@ aside {
         position: absolute;
         left: -240px;
         width: 240px;
+        max-width: 240px;
+        overflow: hidden;
         top: 0;
         height: 100%;
         z-index: 100;
@@ -1013,6 +1036,8 @@ aside {
         height: 100%;
         border-bottom-left-radius: 0;
         min-height: auto;
+        box-sizing: border-box;
+        width: 100%;
     }
 
     #mainContent {
