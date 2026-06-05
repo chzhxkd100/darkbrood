@@ -81,15 +81,29 @@
               </a>
             </nav>
 
-            <!-- Operator Admin Links (Only show when logged in) -->
-            <% if (isAdmin) { %>
-              <nav class="nav-categories" aria-label="Navigation Category: Admin">
-                <span class="navbar-titles">운영 (System)</span>
+            <!-- User Account / Admin Links -->
+            <nav class="nav-categories" aria-label="Navigation Category: Account">
+              <span class="navbar-titles">계정 (Account)</span>
+              <% if (locals.user) { %>
+                <div style="padding: 6px 12px; font-size: 13px; color: #fff; text-shadow: 1px 1px 2px #000; display: flex; align-items: center; gap: 6px;">
+                  <span class="nav-bullet">✦</span> <strong><%= user.nickname %></strong> 님
+                </div>
                 <a href="/logout" class="nav-inactive">
-                  <span class="nav-bullet">✦</span> 관리자 로그아웃
+                  <span class="nav-bullet">✦</span> 로그아웃 (Logout)
                 </a>
-              </nav>
-            <% } %>
+              <% } else { %>
+                <a href="/login" class="<%= path === '/login' ? 'nav-active' : 'nav-inactive' %>">
+                  <span class="nav-bullet">✦</span> 로그인 (Login)
+                </a>
+              <% } %>
+              
+              <% if (isAdmin) { %>
+                <div style="border-top: 1px dashed rgba(255, 255, 255, 0.1); margin: 4px 0;"></div>
+                <a href="/logout" class="nav-inactive" style="color: #ff9999;">
+                  <span class="nav-bullet" style="color: #ff3333;">✦</span> 관리자 로그아웃
+                </a>
+              <% } %>
+            </nav>
 
             <!-- Chat Widget (Replaces WMP11 & Audio/Theme toggles) -->
             <div class="chat-widget">

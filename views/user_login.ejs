@@ -1,0 +1,84 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1 id="pageTitle">심연 인가 (User Access)</h1>
+  </header>
+
+  <div class="glass-borders" style="max-width: 400px; margin: 40px auto;">
+    <article class="styled-containers aero-borders">
+      <h2 id="formHeader">심연 로그인</h2>
+      
+      <% if (locals.error) { %>
+        <div class="error-alert" style="background: rgba(179, 0, 0, 0.2); border: 1px solid #b30000; padding: 10px; border-radius: 4px; color: #ff9999; margin-bottom: 15px; font-size: 13px; text-shadow: 1px 1px 2px #000; text-align: center;">
+          <%= error %>
+        </div>
+      <% } %>
+
+      <% if (locals.success) { %>
+        <div class="success-alert" style="background: rgba(60, 218, 86, 0.2); border: 1px solid var(--accent-color); padding: 10px; border-radius: 4px; color: var(--accent-color); margin-bottom: 15px; font-size: 13px; text-shadow: 1px 1px 2px #000; text-align: center;">
+          <%= success %>
+        </div>
+      <% } %>
+
+      <form id="authForm" action="/login" method="POST" class="post-form">
+        <div class="form-group">
+          <label for="nickname">닉네임 (Nickname)</label>
+          <input type="text" id="nickname" name="nickname" required placeholder="닉네임 입력 (2~15자)..." autofocus />
+        </div>
+        <div class="form-group">
+          <label for="password">비밀번호 (Password)</label>
+          <input type="password" id="password" name="password" required placeholder="비밀번호 입력..." />
+        </div>
+        <button type="submit" id="submitBtn" class="submit-btn" style="width: 100%; margin-top: 10px;">로그인</button>
+      </form>
+      
+      <div style="text-align: center; margin-top: 20px; font-size: 13px;">
+        <span id="toggleText" style="color: var(--text-secondary);">계정이 없으신가요? </span>
+        <a href="#" id="toggleLink" onclick="toggleMode(event)" style="font-weight: bold; color: var(--accent-color); text-decoration: underline;">회원가입하기</a>
+      </div>
+
+      <div style="text-align: center; margin-top: 15px; border-top: 1px dashed rgba(255, 255, 255, 0.1); padding-top: 12px; font-size: 12.5px;">
+        <a href="/" class="back-link" style="color: var(--text-secondary);">← 메인 페이지로 복귀</a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<script>
+  let isLoginMode = true;
+
+  function toggleMode(e) {
+    if (e) e.preventDefault();
+    
+    isLoginMode = !isLoginMode;
+    
+    const pageTitle = document.getElementById('pageTitle');
+    const formHeader = document.getElementById('formHeader');
+    const authForm = document.getElementById('authForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const toggleText = document.getElementById('toggleText');
+    const toggleLink = document.getElementById('toggleLink');
+    const nicknameInput = document.getElementById('nickname');
+    
+    if (isLoginMode) {
+      pageTitle.textContent = '심연 인가 (User Access)';
+      formHeader.textContent = '심연 로그인';
+      authForm.action = '/login';
+      submitBtn.textContent = '로그인';
+      toggleText.textContent = '계정이 없으신가요? ';
+      toggleLink.textContent = '회원가입하기';
+      nicknameInput.placeholder = '닉네임 입력 (2~15자)...';
+    } else {
+      pageTitle.textContent = '영혼 등록 (User Registration)';
+      formHeader.textContent = '심연 회원가입';
+      authForm.action = '/signup';
+      submitBtn.textContent = '회원가입';
+      toggleText.textContent = '이미 계정이 있으신가요? ';
+      toggleLink.textContent = '로그인하기';
+      nicknameInput.placeholder = '새로운 닉네임 (2~15자)...';
+    }
+  }
+</script>
+
+<%- include('footer') %>

@@ -5,6 +5,11 @@ const path = require('path');
 const db = require('./db');
 const { upload, getImageUrl } = require('./storage');
 
+// Helper to hash password using SHA-256
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password).digest('hex');
+}
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -52,6 +57,7 @@ app.use(express.json());
 // Pass session variables to EJS templates globally & disable CDN caching for dynamic routes
 app.use((req, res, next) => {
     res.locals.isAdmin = req.session.isAdmin || false;
+    res.locals.user = req.session.user || null;
     res.locals.path = req.path;
     res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     next();
@@ -161,8 +167,15 @@ app.get('/diary', async (req, res) => {
             .orderBy('createdAt', 'desc')
             .get();
         
-        const posts = diarySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        res.render('diary', { posts });
+        let posts = diarySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Filter by author nickname if query parameter is provided
+        const authorFilter = req.query.author ? req.query.author.trim() : null;
+        if (authorFilter) {
+            posts = posts.filter(post => post.authorNickname === authorFilter);
+        }
+        
+        res.render('diary', { posts, authorFilter });
     } catch (err) {
         console.error('Error in GET /diary:', err.stack || err);
         res.status(500).send('Database Error');
@@ -230,22 +243,39 @@ app.get('/community', async (req, res) => {
     }
 });
 
-// Post creation for Diary & Notice (Admin only)
-app.post('/post/new', requireAdmin, async (req, res) => {
+// Post creation for Diary & Notice
+app.post('/post/new', async (req, res) => {
     const { type, title, content } = req.body;
     if (!['diary', 'notice'].includes(type)) {
         return res.status(400).send('Invalid post type');
     }
     
+    // Authorization check
+    if (type === 'notice' && !req.session.isAdmin) {
+        return res.status(403).send('Forbidden: Access denied. Operators only.');
+    }
+    if (type === 'diary' && !req.session.user) {
+        return res.status(401).send('Unauthorized: Please log in first.');
+    }
+    
     try {
-        await db.collection('posts').add({
+        const postData = {
             type,
             title,
             content,
             imageUrl: null,
             authorIp: req.ip,
             createdAt: Date.now()
-        });
+        };
+        
+        if (type === 'diary') {
+            postData.authorNickname = req.session.user.nickname;
+            postData.authorId = req.session.user.id;
+        } else {
+            postData.authorNickname = 'Admin';
+        }
+        
+        await db.collection('posts').add(postData);
         res.redirect(`/${type}`);
     } catch (err) {
         console.error('Error in POST /post/new:', err.stack || err);
@@ -253,11 +283,33 @@ app.post('/post/new', requireAdmin, async (req, res) => {
     }
 });
 
-// Delete Post (Admin only)
-app.post('/post/:id/delete', requireAdmin, async (req, res) => {
+// Delete Post (Admin, or Author for diaries)
+app.post('/post/:id/delete', async (req, res) => {
     try {
         const { redirectType } = req.body;
-        await db.collection('posts').doc(req.params.id).delete();
+        const postId = req.params.id;
+        
+        const postDoc = await db.collection('posts').doc(postId).get();
+        if (!postDoc.exists) {
+            return res.status(404).send('Post not found');
+        }
+        
+        const post = postDoc.data();
+        let isAuthorized = false;
+        
+        if (req.session.isAdmin) {
+            isAuthorized = true;
+        } else if (post.type === 'diary' && req.session.user) {
+            if (post.authorId === req.session.user.id || post.authorNickname === req.session.user.nickname) {
+                isAuthorized = true;
+            }
+        }
+        
+        if (!isAuthorized) {
+            return res.status(403).send('Forbidden: You are not authorized to delete this post.');
+        }
+        
+        await db.collection('posts').doc(postId).delete();
         res.redirect(`/${redirectType || ''}`);
     } catch (err) {
         console.error('Error in POST /post/:id/delete:', err.stack || err);
@@ -425,7 +477,92 @@ app.post('/admin', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-    res.redirect('/admin');
+    if (req.session.user) {
+        return res.redirect('/diary');
+    }
+    res.render('user_login', { error: null, success: null });
+});
+
+app.post('/login', async (req, res) => {
+    const { nickname, password } = req.body;
+    if (!nickname || !password) {
+        return res.render('user_login', { error: '닉네임과 비밀번호를 모두 입력해주세요.', success: null });
+    }
+    
+    try {
+        const trimmedNickname = nickname.trim();
+        const userSnap = await db.collection('users')
+            .where('nickname', '==', trimmedNickname)
+            .get();
+            
+        if (userSnap.docs.length === 0) {
+            return res.render('user_login', { error: '존재하지 않는 닉네임입니다.', success: null });
+        }
+        
+        const user = userSnap.docs[0].data();
+        const userId = userSnap.docs[0].id;
+        const hashedPassword = hashPassword(password);
+        
+        if (user.password !== hashedPassword) {
+            return res.render('user_login', { error: '비밀번호가 일치하지 않습니다.', success: null });
+        }
+        
+        const sessionData = {
+            user: {
+                id: userId,
+                nickname: user.nickname
+            },
+            isAdmin: req.session.isAdmin || false,
+            createdAt: Date.now()
+        };
+        
+        const payload = Buffer.from(JSON.stringify(sessionData)).toString('base64');
+        const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
+        const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+        const cookieValue = payload + '.' + signature;
+        
+        const maxAgeSeconds = 24 * 60 * 60; // 24 hours
+        res.setHeader('Set-Cookie', `__session=${cookieValue}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+        
+        res.redirect('/diary');
+    } catch (err) {
+        console.error('Error in POST /login:', err);
+        res.render('user_login', { error: '로그인 중 서버 오류가 발생했습니다.', success: null });
+    }
+});
+
+app.post('/signup', async (req, res) => {
+    const { nickname, password } = req.body;
+    if (!nickname || !password) {
+        return res.render('user_login', { error: '닉네임과 비밀번호를 모두 입력해주세요.', success: null });
+    }
+    
+    try {
+        const trimmedNickname = nickname.trim();
+        if (trimmedNickname.length < 2 || trimmedNickname.length > 15) {
+            return res.render('user_login', { error: '닉네임은 2자 이상 15자 이하여야 합니다.', success: null });
+        }
+        
+        const userSnap = await db.collection('users')
+            .where('nickname', '==', trimmedNickname)
+            .get();
+            
+        if (userSnap.docs.length > 0) {
+            return res.render('user_login', { error: '이미 존재하는 닉네임입니다.', success: null });
+        }
+        
+        const hashedPassword = hashPassword(password);
+        await db.collection('users').add({
+            nickname: trimmedNickname,
+            password: hashedPassword,
+            createdAt: Date.now()
+        });
+        
+        res.render('user_login', { error: null, success: '회원가입이 완료되었습니다. 로그인해 주세요!' });
+    } catch (err) {
+        console.error('Error in POST /signup:', err);
+        res.render('user_login', { error: '회원가입 중 서버 오류가 발생했습니다.', success: null });
+    }
 });
 
 app.get('/logout', (req, res) => {
