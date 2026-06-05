@@ -57,7 +57,13 @@
             <!-- Post Info Header -->
             <div class="post-header">
               <span class="post-id">No. <%= post.id.substring(0, 8) %></span>
-              <span class="post-author">IP: <%= post.authorIp %></span>
+              <span class="post-author">
+                <% if (post.authorNickname) { %>
+                  작성자: <%= post.authorNickname %>
+                <% } else { %>
+                  익명 (<%= post.authorIp %>)
+                <% } %>
+              </span>
               <span class="post-date"><%= new Date(post.createdAt).toLocaleString('ko-KR') %></span>
               <% if (isAdmin) { %>
                 <form action="/post/<%= post.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
@@ -92,7 +98,13 @@
                 <% if (post.comments && post.comments.length > 0) { %>
                   <% post.comments.forEach(comment => { %>
                     <div class="comment-item">
-                      <span class="comment-author">匿名 (<%= comment.authorIp %>)</span>
+                      <span class="comment-author">
+                        <% if (comment.authorNickname) { %>
+                          <%= comment.authorNickname %>
+                        <% } else { %>
+                          匿名 (<%= comment.authorIp %>)
+                        <% } %>
+                      </span>
                       <span class="comment-date"><%= new Date(comment.createdAt).toLocaleString('ko-KR') %></span>
                       <div class="comment-text"><%= comment.content %></div>
                     </div>

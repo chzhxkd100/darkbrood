@@ -16,6 +16,16 @@ const PORT = process.env.PORT || 8080;
 // Enable trusting reverse proxy headers (crucial for secure cookies behind Firebase Hosting proxy)
 app.set('trust proxy', 1);
 
+// Helper to generate a 5-character uppercase alphanumeric anonymous ID
+function generateAnonId() {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 5; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+}
+
 // Custom single-cookie parser and verifier (to bypass Firebase Hosting stripping __session.sig)
 app.use((req, res, next) => {
     const rawCookies = req.headers.cookie || '';
@@ -23,6 +33,7 @@ app.use((req, res, next) => {
     const cookieValue = matches ? decodeURIComponent(matches[1]) : null;
     
     req.session = {}; // Define empty session object by default
+    let isNewSession = false;
     
     if (cookieValue) {
         const parts = cookieValue.split('.');
@@ -44,6 +55,29 @@ app.use((req, res, next) => {
             }
         }
     }
+    
+    // If no session or no anonId in session, generate one
+    if (!req.session.anonId) {
+        req.session.anonId = generateAnonId();
+        req.session.createdAt = req.session.createdAt || Date.now();
+        isNewSession = true;
+    }
+    
+    // Helper function to save session back to the cookie
+    req.saveSession = () => {
+        const payload = Buffer.from(JSON.stringify(req.session)).toString('base64');
+        const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
+        const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
+        const value = payload + '.' + signature;
+        const maxAgeSeconds = 24 * 60 * 60; // 24 hours
+        res.setHeader('Set-Cookie', `__session=${value}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    };
+    
+    // If we generated a new anonId or session, set the cookie immediately so it persists on subsequent requests
+    if (isNewSession) {
+        req.saveSession();
+    }
+    
     next();
 });
 
@@ -342,19 +376,21 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
     
     try {
         const imageUrl = getImageUrl(req, req.file);
-        
-        // Simple IP masking for anonymity representation
-        const ipParts = req.ip.split('.');
-        const maskedIp = ipParts.length >= 2 ? `${ipParts[0]}.${ipParts[1]}.xxx.xxx` : '익명';
-
-        await db.collection('posts').add({
+        const postData = {
             type: 'community',
             title: title || '무제',
             content,
             imageUrl,
-            authorIp: maskedIp,
+            authorIp: req.session.anonId || '익명',
             createdAt: Date.now()
-        });
+        };
+
+        if (req.session.user) {
+            postData.authorNickname = req.session.user.nickname;
+            postData.authorId = req.session.user.id;
+        }
+
+        await db.collection('posts').add(postData);
         res.redirect('/community');
     } catch (err) {
         console.error('Error in POST /community/new:', err.stack || err);
@@ -372,15 +408,19 @@ app.post('/community/:id/comment', async (req, res) => {
     }
     
     try {
-        const ipParts = req.ip.split('.');
-        const maskedIp = ipParts.length >= 2 ? `${ipParts[0]}.${ipParts[1]}.xxx.xxx` : '익명';
-
-        await db.collection('comments').add({
+        const commentData = {
             postId,
             content,
-            authorIp: maskedIp,
+            authorIp: req.session.anonId || '익명',
             createdAt: Date.now()
-        });
+        };
+
+        if (req.session.user) {
+            commentData.authorNickname = req.session.user.nickname;
+            commentData.authorId = req.session.user.id;
+        }
+
+        await db.collection('comments').add(commentData);
         res.redirect('/community');
     } catch (err) {
         console.error('Error in POST /community/:id/comment:', err.stack || err);
@@ -430,19 +470,22 @@ app.post('/chat/send', async (req, res) => {
         return res.status(400).json({ error: 'Content is required' });
     }
     try {
-        const ipParts = req.ip.split('.');
-        const maskedIp = ipParts.length >= 2 ? `${ipParts[0]}.${ipParts[1]}.xxx.xxx` : '익명';
-        
         const createdAt = Date.now();
         // TTL policy helper: expiration set to 24 hours in the future
         const expireAt = createdAt + 24 * 60 * 60 * 1000;
         
-        await db.collection('chat').add({
+        const chatData = {
             content: content.substring(0, 100),
-            authorIp: maskedIp,
+            authorIp: req.session.anonId || '익명',
             createdAt,
             expireAt
-        });
+        };
+
+        if (req.session.user) {
+            chatData.authorNickname = req.session.user.nickname;
+        }
+
+        await db.collection('chat').add(chatData);
         res.json({ success: true });
     } catch (err) {
         console.error('Error in POST /chat/send:', err.stack || err);
@@ -462,14 +505,9 @@ app.post('/admin', (req, res) => {
     const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
     
     if (password === adminPassword) {
-        // Encode and sign session state into a single __session cookie
-        const payload = Buffer.from(JSON.stringify({ isAdmin: true, createdAt: Date.now() })).toString('base64');
-        const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
-        const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-        const cookieValue = payload + '.' + signature;
-        
-        const maxAgeSeconds = 24 * 60 * 60; // 24 hours
-        res.setHeader('Set-Cookie', `__session=${cookieValue}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+        req.session.isAdmin = true;
+        req.session.createdAt = Date.now();
+        req.saveSession();
         res.redirect('/');
     } else {
         res.render('login', { error: '잘못된 비밀번호입니다. 심연의 접근이 거부되었습니다.' });
@@ -507,22 +545,12 @@ app.post('/login', async (req, res) => {
             return res.render('user_login', { error: '비밀번호가 일치하지 않습니다.', success: null });
         }
         
-        const sessionData = {
-            user: {
-                id: userId,
-                nickname: user.nickname
-            },
-            isAdmin: req.session.isAdmin || false,
-            createdAt: Date.now()
+        req.session.user = {
+            id: userId,
+            nickname: user.nickname
         };
-        
-        const payload = Buffer.from(JSON.stringify(sessionData)).toString('base64');
-        const secret = process.env.SESSION_SECRET || 'dark_solitude_secret_key';
-        const signature = crypto.createHmac('sha256', secret).update(payload).digest('base64url');
-        const cookieValue = payload + '.' + signature;
-        
-        const maxAgeSeconds = 24 * 60 * 60; // 24 hours
-        res.setHeader('Set-Cookie', `__session=${cookieValue}; Max-Age=${maxAgeSeconds}; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+        req.session.createdAt = Date.now();
+        req.saveSession();
         
         res.redirect('/diary');
     } catch (err) {

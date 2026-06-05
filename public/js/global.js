@@ -67,10 +67,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (messages.length > 0) {
                 const newHTML = messages.map(msg => {
                     const dateStr = new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const authorText = msg.authorNickname ? msg.authorNickname : `익명(${msg.authorIp})`;
+                    const authorStyle = msg.authorNickname ? 'style="color: var(--accent-color); font-weight: bold;"' : '';
                     return `
                         <div class="chat-msg">
                             <div class="chat-msg-header">
-                                <span class="chat-msg-author">${msg.authorIp}</span>
+                                <span class="chat-msg-author" ${authorStyle}>${authorText}</span>
                                 <span class="chat-msg-time">${dateStr}</span>
                             </div>
                             <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
