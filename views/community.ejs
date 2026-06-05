@@ -56,14 +56,14 @@
           <article class="styled-containers aero-borders community-post">
             <!-- Post Info Header -->
             <div class="post-header">
-              <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
               <span class="post-author">
                 <% if (post.authorNickname) { %>
-                  작성자: <%= post.authorNickname %>
+                  <%= post.authorNickname %>
                 <% } else { %>
                   익명 (<%= post.authorIp %>)
                 <% } %>
               </span>
+              <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
               <% if (isAdmin) { %>
                 <form action="/post/<%= post.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
                   <input type="hidden" name="redirectType" value="community" />
