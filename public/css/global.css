@@ -1014,6 +1014,7 @@ aside {
         height: calc(100vh - 54px);
         margin-top: 0;
         gap: 0;
+        overflow: hidden;
     }
     
     aside {
@@ -1025,11 +1026,15 @@ aside {
         top: 0;
         height: 100%;
         z-index: 100;
-        transition: left 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        transition: left 0.3s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        visibility: hidden;
+        pointer-events: none;
     }
     
     aside.open {
         left: 0;
+        visibility: visible;
+        pointer-events: auto;
     }
     
     #navigationMenu {
