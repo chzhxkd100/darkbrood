@@ -181,7 +181,18 @@ async function attachCommentsToPosts(posts) {
 // Automatic patch notes notice registration
 async function seedPatchNotes() {
     try {
-        const patchTitle = '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)';
+        const patchTitle = 'DarkBrood v1.1.0 패치노트';
+        
+        // Delete older version with emoji title if exists
+        const oldTitle = '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)';
+        const oldSnap = await db.collection('posts')
+            .where('type', '==', 'notice')
+            .where('title', '==', oldTitle)
+            .get();
+        for (const doc of oldSnap.docs) {
+            await db.collection('posts').doc(doc.id).delete();
+        }
+
         const noticeSnap = await db.collection('posts')
             .where('type', '==', 'notice')
             .where('title', '==', patchTitle)
@@ -189,10 +200,10 @@ async function seedPatchNotes() {
             
         const contentStr = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
 
-💬 대댓글(답글) 기능 도입
-👤 작성자 글 모아보기 (커뮤니티)
-🔍 글 안에서 이미지 바로 확대/축소 (4chan 스타일)
-📝 공지사항 & 일기 댓글 추가
+- 대댓글(답글) 기능 도입
+- 작성자 글 모아보기 기능 추가 (커뮤니티)
+- 본문 내 이미지 확대/축소 기능 구현
+- 공지사항 및 일기 댓글 작성 기능 추가
 
 더 깊고 고독한 사색을 즐기시길 바랍니다.`;
 
