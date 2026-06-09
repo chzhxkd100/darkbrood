@@ -223,58 +223,27 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 3. Image Lightbox (Zoom in/out inside site)
+    // 3. 4chan Style Image Expansion (Inline Toggle)
     // ==========================================================================
-    const lightbox = document.getElementById('imageLightbox');
-    const lightboxImg = document.getElementById('lightboxImg');
-    const lightboxCaption = document.getElementById('lightboxCaption');
-    const lightboxClose = document.querySelector('.lightbox-close');
-
-    if (lightbox && lightboxImg) {
-        // Event delegation to capture clicks on lightbox triggers
-        document.body.addEventListener('click', (e) => {
-            const trigger = e.target.closest('.lightbox-trigger');
-            if (trigger) {
-                e.preventDefault();
-                const imgSrc = trigger.getAttribute('href');
-                const imgAlt = trigger.querySelector('img')?.getAttribute('alt') || '확대 이미지';
-                
-                lightboxImg.src = imgSrc;
-                if (lightboxCaption) {
-                    lightboxCaption.textContent = imgAlt;
-                }
-                
-                lightbox.classList.add('active');
-                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+    document.body.addEventListener('click', (e) => {
+        const trigger = e.target.closest('.lightbox-trigger');
+        if (trigger) {
+            e.preventDefault();
+            const img = trigger.querySelector('.post-thumbnail');
+            const container = trigger.closest('.post-image-container');
+            const body = trigger.closest('.post-body');
+            
+            if (img) {
+                img.classList.toggle('expanded');
             }
-        });
-
-        const closeLightbox = () => {
-            lightbox.classList.remove('active');
-            document.body.style.overflow = '';
-            setTimeout(() => {
-                lightboxImg.src = '';
-            }, 300); // Wait for transition opacity
-        };
-
-        if (lightboxClose) {
-            lightboxClose.addEventListener('click', closeLightbox);
+            if (container) {
+                container.classList.toggle('expanded');
+            }
+            if (body) {
+                body.classList.toggle('has-expanded-image');
+            }
         }
-
-        // Close when clicking empty space or wrapper
-        lightbox.addEventListener('click', (e) => {
-            if (e.target === lightbox || e.target.classList.contains('lightbox-wrapper') || e.target === lightboxImg.parentElement) {
-                closeLightbox();
-            }
-        });
-
-        // Close on ESC key press
-        window.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && lightbox.classList.contains('active')) {
-                closeLightbox();
-            }
-        });
-    }
+    });
 });
 
 // Global Reply Form Toggle helper

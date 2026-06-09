@@ -187,26 +187,32 @@ async function seedPatchNotes() {
             .where('title', '==', patchTitle)
             .get();
             
-        if (noticeSnap.docs.length === 0) {
+        const contentStr = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
+
+💬 대댓글(답글) 기능 도입
+👤 작성자 글 모아보기 (커뮤니티)
+🔍 글 안에서 이미지 바로 확대/축소 (4chan 스타일)
+📝 공지사항 & 일기 댓글 추가
+
+더 깊고 고독한 사색을 즐기시길 바랍니다.`;
+
+        if (noticeSnap.docs.length > 0) {
+            const docId = noticeSnap.docs[0].id;
+            await db.collection('posts').doc(docId).set({
+                type: 'notice',
+                title: patchTitle,
+                content: contentStr,
+                imageUrl: null,
+                authorIp: '127.0.0.1',
+                authorNickname: '운영자',
+                createdAt: noticeSnap.docs[0].data().createdAt || Date.now()
+            });
+        } else {
             console.log('Publishing v1.1.0 patch notes notice...');
             await db.collection('posts').add({
                 type: 'notice',
                 title: patchTitle,
-                content: `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
-
-💬 대댓글(답글) 기능 도입
-- 이제 소중한 댓글에 직접 답글(대댓글)을 남겨 깊은 대화를 이어나갈 수 있습니다.
-
-👤 작성자 글 모아보기 확대
-- 커뮤니티 게시판에서도 작성자 이름(닉네임 또는 익명 ID)을 클릭하면, 해당 작성자가 남긴 글들을 모아볼 수 있습니다.
-
-🔍 사이트 내 이미지 간편 확대
-- 게시글에 첨부된 이미지를 클릭하면, 새 창이 아닌 현재 화면에서 크고 아름답게 보실 수 있습니다. 여백을 클릭하면 부드럽게 닫힙니다.
-
-📝 공지사항 & 일기 댓글 추가
-- 이제 공지사항과 사념 기록(일기)에도 댓글을 작성할 수 있습니다. 운영자와 소통하십시오.
-
-더 깊고 고독한 사색을 즐기시길 바랍니다.`,
+                content: contentStr,
                 imageUrl: null,
                 authorIp: '127.0.0.1',
                 authorNickname: '운영자',
