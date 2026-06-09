@@ -48,6 +48,18 @@
     }
   </script>
 
+  <!-- Filter notification if active -->
+  <% if (locals.authorFilter) { %>
+    <div class="glass-borders" style="margin-bottom: 20px;">
+      <div class="styled-containers aero-borders" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px;">
+        <span style="color: #fff; font-size: 13.5px;">
+          <strong style="color: var(--accent-color);"><%= authorFilter %></strong> 님의 글을 필터링 중입니다.
+        </span>
+        <a href="/community" class="submit-btn" style="text-decoration: none; padding: 4px 12px; font-size: 12px;">전체 보기</a>
+      </div>
+    </div>
+  <% } %>
+
   <!-- Anonymous Posts list -->
   <div class="community-list-container">
     <% if (posts && posts.length > 0) { %>
@@ -58,9 +70,13 @@
             <div class="post-header">
               <span class="post-author">
                 <% if (post.authorNickname) { %>
-                  <%= post.authorNickname %>
+                  <a href="/community?author=<%= encodeURIComponent(post.authorNickname) %>" title="<%= post.authorNickname %> 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline;">
+                    <%= post.authorNickname %>
+                  </a>
                 <% } else { %>
-                  익명 (<%= post.authorIp %>)
+                  <a href="/community?author=<%= encodeURIComponent(post.authorIp) %>" title="익명(<%= post.authorIp %>) 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline;">
+                    익명 (<%= post.authorIp %>)
+                  </a>
                 <% } %>
               </span>
               <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
@@ -76,12 +92,12 @@
             <% if (post.title && post.title !== '무제') { %>
               <h3 class="community-subject"><%= post.title %></h3>
             <% } %>
-
+ 
             <!-- Post Body (Flex wrapper for image and text) -->
             <div class="post-body">
               <% if (post.imageUrl) { %>
                 <div class="post-image-container">
-                  <a href="<%= post.imageUrl %>" target="_blank" title="클릭하여 원본 보기">
+                  <a href="<%= post.imageUrl %>" class="lightbox-trigger" title="클릭하여 확대">
                     <img src="<%= post.imageUrl %>" alt="첨부 이미지" class="post-thumbnail" />
                   </a>
                 </div>
@@ -90,35 +106,9 @@
                 <%= post.content %>
               </div>
             </div>
-
+ 
             <!-- Comments Section -->
-            <div class="comments-section styled-containers-layer-2 aero-borders">
-              <div class="comments-list">
-                <% if (post.comments && post.comments.length > 0) { %>
-                  <% post.comments.forEach(comment => { %>
-                    <div class="comment-item">
-                      <span class="comment-author">
-                        <% if (comment.authorNickname) { %>
-                          <%= comment.authorNickname %>
-                        <% } else { %>
-                          匿名 (<%= comment.authorIp %>)
-                        <% } %>
-                      </span>
-                      <span class="comment-date" data-timestamp="<%= comment.createdAt %>"></span>
-                      <div class="comment-text"><%= comment.content %></div>
-                    </div>
-                  <% }) %>
-                <% } else { %>
-                  <p class="no-comments">댓글이 없습니다. 첫 번째 파편을 던져보세요.</p>
-                <% } %>
-              </div>
-
-              <!-- Quick Comment Reply Form -->
-              <form action="/community/<%= post.id %>/comment" method="POST" class="comment-form">
-                <input type="text" name="content" required placeholder="익명 댓글 작성..." class="comment-input" />
-                <button type="submit" class="comment-submit-btn">댓글</button>
-              </form>
-            </div>
+            <%- include('partials/comments', { post: post, redirectType: 'community' }) %>
           </article>
         </div>
       <% }) %>

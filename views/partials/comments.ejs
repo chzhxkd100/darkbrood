@@ -1,0 +1,74 @@
+<div class="comments-section styled-containers-layer-2 aero-borders" style="margin-top: 15px;">
+  <% 
+    const comments = post.comments || [];
+    const rootComments = comments.filter(c => !c.parentId);
+    const childComments = comments.filter(c => c.parentId);
+  %>
+  
+  <div class="comments-list">
+    <% if (rootComments.length > 0) { %>
+      <% rootComments.forEach(comment => { %>
+        <!-- Parent Comment -->
+        <div class="comment-item" id="comment-<%= comment.id %>">
+          <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+            <div>
+              <span class="comment-author">
+                <% if (comment.authorNickname) { %>
+                  <%= comment.authorNickname %>
+                <% } else { %>
+                  匿名 (<%= comment.authorIp %>)
+                <% } %>
+              </span>
+              <span class="comment-date" data-timestamp="<%= comment.createdAt %>"></span>
+            </div>
+            
+            <button type="button" class="reply-toggle-btn" onclick="toggleReplyForm('<%= comment.id %>')" style="background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-secondary); font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+              답글
+            </button>
+          </div>
+          <div class="comment-text" style="color: var(--text-primary); font-size: 12.5px;"><%= comment.content %></div>
+        </div>
+
+        <!-- Replies (Nested Comments) -->
+        <% 
+          const replies = childComments.filter(c => c.parentId === comment.id);
+          replies.forEach(reply => {
+        %>
+          <div class="comment-item reply-item" id="comment-<%= reply.id %>" style="margin-left: 20px; border-left: 2px dashed var(--accent-glow); background: rgba(255, 255, 255, 0.01); padding: 6px 10px; margin-top: 4px; border-radius: 0 4px 4px 0;">
+            <div class="comment-header" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+              <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
+              <span class="comment-author">
+                <% if (reply.authorNickname) { %>
+                  <%= reply.authorNickname %>
+                <% } else { %>
+                  匿名 (<%= reply.authorIp %>)
+                <% } %>
+              </span>
+              <span class="comment-date" data-timestamp="<%= reply.createdAt %>"></span>
+            </div>
+            <div class="comment-text" style="padding-left: 14px; color: var(--text-primary); font-size: 12px;"><%= reply.content %></div>
+          </div>
+        <% }) %>
+
+        <!-- Reply Form (initially hidden) -->
+        <div id="reply-form-<%= comment.id %>" class="reply-form-container" style="display: none; margin-left: 20px; margin-top: 6px; margin-bottom: 10px;">
+          <form action="/post/<%= post.id %>/comment" method="POST" class="comment-form" style="display: flex; gap: 5px;">
+            <input type="hidden" name="parentId" value="<%= comment.id %>" />
+            <input type="hidden" name="redirectType" value="<%= redirectType %>" />
+            <input type="text" name="content" required placeholder="답글을 남기세요..." class="comment-input" style="flex: 1; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 12px; outline: none;" />
+            <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 11.5px; padding: 5px 10px; cursor: pointer; font-weight: bold;">답글</button>
+          </form>
+        </div>
+      <% }) %>
+    <% } else { %>
+      <p class="no-comments" style="font-size: 12px; color: var(--text-secondary); font-style: italic; text-align: center; margin: 10px 0;">댓글이 없습니다. 첫 번째 메아리를 울려보세요.</p>
+    <% } %>
+  </div>
+
+  <!-- Normal Comment Form -->
+  <form action="/post/<%= post.id %>/comment" method="POST" class="comment-form" style="margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px; display: flex; gap: 5px;">
+    <input type="hidden" name="redirectType" value="<%= redirectType %>" />
+    <input type="text" name="content" required placeholder="댓글을 작성해 주세요..." class="comment-input" style="flex: 1; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 12.5px; outline: none;" />
+    <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 12px; padding: 6px 12px; cursor: pointer; font-weight: bold;">댓글</button>
+  </form>
+</div>

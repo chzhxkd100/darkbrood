@@ -68,6 +68,9 @@
                 </form>
               </div>
             <% } %>
+
+            <!-- Comments Section -->
+            <%- include('partials/comments', { post: notice, redirectType: 'notice' }) %>
           </article>
         </div>
       <% }) %>

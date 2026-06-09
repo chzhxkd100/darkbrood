@@ -162,6 +162,64 @@ if (process.env.NODE_ENV !== 'production' && !process.env.FIRESTORE_PROJECT_ID) 
     seedMockData();
 }
 
+// Helper to attach comments to list of posts
+async function attachCommentsToPosts(posts) {
+    if (!posts || posts.length === 0) return;
+    try {
+        const allCommentsSnap = await db.collection('comments')
+            .orderBy('createdAt', 'asc')
+            .get();
+        const allComments = allCommentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        posts.forEach(post => {
+            post.comments = allComments.filter(comment => comment.postId === post.id);
+        });
+    } catch (e) {
+        console.error('Error attaching comments to posts:', e);
+    }
+}
+
+// Automatic patch notes notice registration
+async function seedPatchNotes() {
+    try {
+        const patchTitle = '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)';
+        const noticeSnap = await db.collection('posts')
+            .where('type', '==', 'notice')
+            .where('title', '==', patchTitle)
+            .get();
+            
+        if (noticeSnap.docs.length === 0) {
+            console.log('Publishing v1.1.0 patch notes notice...');
+            await db.collection('posts').add({
+                type: 'notice',
+                title: patchTitle,
+                content: `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
+
+💬 대댓글(답글) 기능 도입
+- 이제 소중한 댓글에 직접 답글(대댓글)을 남겨 깊은 대화를 이어나갈 수 있습니다.
+
+👤 작성자 글 모아보기 확대
+- 커뮤니티 게시판에서도 작성자 이름(닉네임 또는 익명 ID)을 클릭하면, 해당 작성자가 남긴 글들을 모아볼 수 있습니다.
+
+🔍 사이트 내 이미지 간편 확대
+- 게시글에 첨부된 이미지를 클릭하면, 새 창이 아닌 현재 화면에서 크고 아름답게 보실 수 있습니다. 여백을 클릭하면 부드럽게 닫힙니다.
+
+📝 공지사항 & 일기 댓글 추가
+- 이제 공지사항과 사념 기록(일기)에도 댓글을 작성할 수 있습니다. 운영자와 소통하십시오.
+
+더 깊고 고독한 사색을 즐기시길 바랍니다.`,
+                imageUrl: null,
+                authorIp: '127.0.0.1',
+                authorNickname: '운영자',
+                createdAt: Date.now()
+            });
+        }
+    } catch (err) {
+        console.error('Error seeding patch notes:', err);
+    }
+}
+seedPatchNotes();
+
+
 // ----------------------------------------------------
 // ROUTES
 // ----------------------------------------------------
@@ -175,6 +233,9 @@ app.get('/', async (req, res) => {
             .get();
         
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Attach comments to notices
+        await attachCommentsToPosts(notices);
         
         let introText = null;
         try {
@@ -209,6 +270,9 @@ app.get('/diary', async (req, res) => {
             posts = posts.filter(post => post.authorNickname === authorFilter);
         }
         
+        // Attach comments to diary posts
+        await attachCommentsToPosts(posts);
+        
         res.render('diary', { posts, authorFilter });
     } catch (err) {
         console.error('Error in GET /diary:', err.stack || err);
@@ -225,6 +289,10 @@ app.get('/notice', async (req, res) => {
             .get();
         
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Attach comments to notices
+        await attachCommentsToPosts(notices);
+        
         res.render('notice', { notices });
     } catch (err) {
         console.error('Error in GET /notice:', err.stack || err);
@@ -240,7 +308,17 @@ app.get('/community', async (req, res) => {
             .orderBy('createdAt', 'desc')
             .get();
         
-        const allPosts = communitySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let allPosts = communitySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Filter by author nickname or anonymous IP/ID if query parameter is provided
+        const authorFilter = req.query.author ? req.query.author.trim() : null;
+        if (authorFilter) {
+            allPosts = allPosts.filter(post => {
+                const nick = post.authorNickname;
+                const ip = post.authorIp;
+                return (nick && nick === authorFilter) || (ip && ip === authorFilter);
+            });
+        }
         
         // Pagination logic
         const currentPage = parseInt(req.query.page) || 1;
@@ -255,21 +333,14 @@ app.get('/community', async (req, res) => {
         
         const posts = allPosts.slice(startIndex, endIndex);
         
-        // Fetch comments for all posts
-        const allCommentsSnap = await db.collection('comments')
-            .orderBy('createdAt', 'asc')
-            .get();
-        const allComments = allCommentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Map comments to posts
-        posts.forEach(post => {
-            post.comments = allComments.filter(comment => comment.postId === post.id);
-        });
+        // Fetch comments for posts
+        await attachCommentsToPosts(posts);
 
         res.render('community', { 
             posts, 
             currentPage: page, 
-            totalPages 
+            totalPages,
+            authorFilter
         });
     } catch (err) {
         console.error('Error in GET /community:', err.stack || err);
@@ -400,13 +471,13 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
     }
 });
 
-// Add Comment (Anonymous)
-app.post('/community/:id/comment', async (req, res) => {
-    const { content } = req.body;
+// Unified Add Comment / Reply (Notice, Diary, Community)
+app.post('/post/:id/comment', async (req, res) => {
+    const { content, parentId, redirectType } = req.body;
     const postId = req.params.id;
     
     if (!content || content.trim() === '') {
-        return res.redirect('/community');
+        return res.redirect(`/${redirectType || ''}`);
     }
     
     try {
@@ -417,6 +488,10 @@ app.post('/community/:id/comment', async (req, res) => {
             createdAt: Date.now()
         };
 
+        if (parentId && parentId.trim() !== '') {
+            commentData.parentId = parentId.trim();
+        }
+
         if (req.session.user) {
             commentData.authorNickname = req.session.user.nickname;
             commentData.authorId = req.session.user.id;
@@ -425,11 +500,17 @@ app.post('/community/:id/comment', async (req, res) => {
         }
 
         await db.collection('comments').add(commentData);
-        res.redirect('/community');
+        res.redirect(`/${redirectType || ''}`);
     } catch (err) {
-        console.error('Error in POST /community/:id/comment:', err.stack || err);
+        console.error('Error in POST /post/:id/comment:', err.stack || err);
         res.status(500).send('Error adding comment');
     }
+});
+
+// Legacy route fallback redirecting to the unified one
+app.post('/community/:id/comment', async (req, res) => {
+    req.body.redirectType = 'community';
+    res.redirect(307, `/post/${req.params.id}/comment`);
 });
 
 // ----------------------------------------------------

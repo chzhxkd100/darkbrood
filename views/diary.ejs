@@ -107,6 +107,9 @@
                 </form>
               </div>
             <% } %>
+
+            <!-- Comments Section -->
+            <%- include('partials/comments', { post: post, redirectType: 'diary' }) %>
           </article>
         </div>
       <% }) %>

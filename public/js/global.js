@@ -221,4 +221,76 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // ==========================================================================
+    // 3. Image Lightbox (Zoom in/out inside site)
+    // ==========================================================================
+    const lightbox = document.getElementById('imageLightbox');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const lightboxCaption = document.getElementById('lightboxCaption');
+    const lightboxClose = document.querySelector('.lightbox-close');
+
+    if (lightbox && lightboxImg) {
+        // Event delegation to capture clicks on lightbox triggers
+        document.body.addEventListener('click', (e) => {
+            const trigger = e.target.closest('.lightbox-trigger');
+            if (trigger) {
+                e.preventDefault();
+                const imgSrc = trigger.getAttribute('href');
+                const imgAlt = trigger.querySelector('img')?.getAttribute('alt') || '확대 이미지';
+                
+                lightboxImg.src = imgSrc;
+                if (lightboxCaption) {
+                    lightboxCaption.textContent = imgAlt;
+                }
+                
+                lightbox.style.display = 'flex';
+                // Trigger reflow for transition
+                lightbox.offsetHeight; 
+                lightbox.classList.add('active');
+                document.body.style.overflow = 'hidden'; // Prevent background scrolling
+            }
+        });
+
+        const closeLightbox = () => {
+            lightbox.classList.remove('active');
+            document.body.style.overflow = '';
+            setTimeout(() => {
+                lightbox.style.display = 'none';
+                lightboxImg.src = '';
+            }, 300); // Wait for transition opacity
+        };
+
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', closeLightbox);
+        }
+
+        // Close when clicking empty space or wrapper
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox || e.target.classList.contains('lightbox-wrapper') || e.target === lightboxImg.parentElement) {
+                closeLightbox();
+            }
+        });
+
+        // Close on ESC key press
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.classList.contains('active')) {
+                closeLightbox();
+            }
+        });
+    }
 });
+
+// Global Reply Form Toggle helper
+window.toggleReplyForm = function(id) {
+    const form = document.getElementById('reply-form-' + id);
+    if (form) {
+        const isHidden = form.style.display === 'none';
+        form.style.display = isHidden ? 'block' : 'none';
+        if (isHidden) {
+            const input = form.querySelector('.comment-input');
+            if (input) input.focus();
+        }
+    }
+};
+
