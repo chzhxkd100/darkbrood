@@ -122,25 +122,12 @@
   </div>
 
   <!-- Pagination Controls -->
-  <% if (totalPages > 1) { %>
-    <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 25px; margin-bottom: 25px;">
-      <% if (currentPage > 1) { %>
-        <a href="/community?page=<%= currentPage - 1 %><%= authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;">이전</a>
-      <% } %>
-      
-      <% for (let i = 1; i <= totalPages; i++) { %>
-        <% if (i === currentPage) { %>
-          <span class="submit-btn" style="padding: 6px 12px; font-size: 0.9rem; background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); cursor: default; box-shadow: 0 0 10px rgba(255,255,255,0.3);"><%= i %></span>
-        <% } else { %>
-          <a href="/community?page=<%= i %><%= authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;"><%= i %></a>
-        <% } %>
-      <% } %>
-
-      <% if (currentPage < totalPages) { %>
-        <a href="/community?page=<%= currentPage + 1 %><%= authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;">다음</a>
-      <% } %>
-    </div>
-  <% } %>
+  <%- include('partials/pagination', { 
+      currentPage: currentPage, 
+      totalPages: totalPages, 
+      basePath: '/community', 
+      filterParam: authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' 
+  }) %>
 </section>
 
 <%- include('footer') %>

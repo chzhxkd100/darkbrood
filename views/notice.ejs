@@ -82,6 +82,14 @@
       </div>
     <% } %>
   </div>
+
+  <!-- Pagination Controls -->
+  <%- include('partials/pagination', { 
+      currentPage: currentPage, 
+      totalPages: totalPages, 
+      basePath: '/notice', 
+      filterParam: '' 
+  }) %>
 </section>
 
 <%- include('footer') %>

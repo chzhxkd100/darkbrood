@@ -121,6 +121,14 @@
       </div>
     <% } %>
   </div>
+
+  <!-- Pagination Controls -->
+  <%- include('partials/pagination', { 
+      currentPage: currentPage, 
+      totalPages: totalPages, 
+      basePath: '/diary', 
+      filterParam: authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' 
+  }) %>
 </section>
 
 <%- include('footer') %>

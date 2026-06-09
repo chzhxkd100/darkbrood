@@ -1,0 +1,38 @@
+<% if (totalPages > 1) { %>
+  <div class="pagination-container" style="display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 25px; margin-bottom: 25px;">
+    
+    <!-- 처음 페이지로 이동 (<<) -->
+    <% if (currentPage > 1) { %>
+      <a href="<%= basePath %>?page=1<%= filterParam %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;" title="처음 페이지">&lt;&lt;</a>
+      <a href="<%= basePath %>?page=<%= currentPage - 1 %><%= filterParam %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;" title="이전 페이지">&lt;</a>
+    <% } %>
+
+    <!-- 앞부분 생략 표시 (...) -->
+    <% const startPage = Math.max(1, currentPage - 2); %>
+    <% if (startPage > 1) { %>
+      <span style="color: var(--text-secondary); padding: 0 4px;">...</span>
+    <% } %>
+
+    <!-- 페이지 번호 루프 -->
+    <% const endPage = Math.min(totalPages, currentPage + 2); %>
+    <% for (let i = startPage; i <= endPage; i++) { %>
+      <% if (i === currentPage) { %>
+        <span class="submit-btn" style="padding: 6px 12px; font-size: 0.9rem; background: rgba(255,255,255,0.25); border-color: rgba(255,255,255,0.5); cursor: default; box-shadow: 0 0 10px rgba(255,255,255,0.3);"><%= i %></span>
+      <% } else { %>
+        <a href="<%= basePath %>?page=<%= i %><%= filterParam %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;"><%= i %></a>
+      <% } %>
+    <% } %>
+
+    <!-- 뒷부분 생략 표시 (...) -->
+    <% if (endPage < totalPages) { %>
+      <span style="color: var(--text-secondary); padding: 0 4px;">...</span>
+    <% } %>
+
+    <!-- 다음 및 끝 페이지로 이동 (>>) -->
+    <% if (currentPage < totalPages) { %>
+      <a href="<%= basePath %>?page=<%= currentPage + 1 %><%= filterParam %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;" title="다음 페이지">&gt;</a>
+      <a href="<%= basePath %>?page=<%= totalPages %><%= filterParam %>" class="submit-btn" style="text-decoration: none; padding: 6px 12px; font-size: 0.9rem;" title="마지막 페이지">&gt;&gt;</a>
+    <% } %>
+
+  </div>
+<% } %>

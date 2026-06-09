@@ -279,18 +279,36 @@ app.get('/diary', async (req, res) => {
             .orderBy('createdAt', 'desc')
             .get();
         
-        let posts = diarySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        let allPosts = diarySnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         // Filter by author nickname if query parameter is provided
         const authorFilter = req.query.author ? req.query.author.trim() : null;
         if (authorFilter) {
-            posts = posts.filter(post => post.authorNickname === authorFilter);
+            allPosts = allPosts.filter(post => post.authorNickname === authorFilter);
         }
+        
+        // Pagination logic
+        const currentPage = parseInt(req.query.page) || 1;
+        const limit = 5; // 5 posts per page
+        const totalPosts = allPosts.length;
+        const totalPages = Math.ceil(totalPosts / limit) || 1;
+        
+        // Safe bounds for currentPage
+        const page = Math.max(1, Math.min(currentPage, totalPages));
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        
+        const posts = allPosts.slice(startIndex, endIndex);
         
         // Attach comments to diary posts
         await attachCommentsToPosts(posts);
         
-        res.render('diary', { posts, authorFilter });
+        res.render('diary', { 
+            posts, 
+            currentPage: page,
+            totalPages,
+            authorFilter 
+        });
     } catch (err) {
         console.error('Error in GET /diary:', err.stack || err);
         res.status(500).send('Database Error');
@@ -305,12 +323,29 @@ app.get('/notice', async (req, res) => {
             .orderBy('createdAt', 'desc')
             .get();
         
-        const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const allNotices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Pagination logic
+        const currentPage = parseInt(req.query.page) || 1;
+        const limit = 5; // 5 posts per page
+        const totalNotices = allNotices.length;
+        const totalPages = Math.ceil(totalNotices / limit) || 1;
+        
+        // Safe bounds for currentPage
+        const page = Math.max(1, Math.min(currentPage, totalPages));
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        
+        const notices = allNotices.slice(startIndex, endIndex);
         
         // Attach comments to notices
         await attachCommentsToPosts(notices);
         
-        res.render('notice', { notices });
+        res.render('notice', { 
+            notices,
+            currentPage: page,
+            totalPages
+        });
     } catch (err) {
         console.error('Error in GET /notice:', err.stack || err);
         res.status(500).send('Database Error');
