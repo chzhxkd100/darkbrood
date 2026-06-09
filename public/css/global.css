@@ -1208,12 +1208,14 @@ aside {
     align-items: center;
     justify-content: center;
     opacity: 0;
-    transition: opacity 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+    visibility: hidden;
+    transition: opacity 0.3s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.3s;
     pointer-events: none;
 }
 
 .lightbox-modal.active {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
 }
 

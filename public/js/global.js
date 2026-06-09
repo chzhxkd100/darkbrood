@@ -244,9 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     lightboxCaption.textContent = imgAlt;
                 }
                 
-                lightbox.style.display = 'flex';
-                // Trigger reflow for transition
-                lightbox.offsetHeight; 
                 lightbox.classList.add('active');
                 document.body.style.overflow = 'hidden'; // Prevent background scrolling
             }
@@ -256,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
             lightbox.classList.remove('active');
             document.body.style.overflow = '';
             setTimeout(() => {
-                lightbox.style.display = 'none';
                 lightboxImg.src = '';
             }, 300); // Wait for transition opacity
         };
