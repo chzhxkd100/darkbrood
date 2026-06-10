@@ -34,16 +34,22 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (sidebarOverlay) {
             // Close menu when clicking the overlay
-            sidebarOverlay.addEventListener('click', () => {
-                asideMenu.classList.remove('open');
-                sidebarOverlay.classList.remove('active');
+            sidebarOverlay.addEventListener('click', (e) => {
+                // Only close if click target is NOT inside the aside (extra safety)
+                if (!asideMenu.contains(e.target)) {
+                    asideMenu.classList.remove('open');
+                    sidebarOverlay.classList.remove('active');
+                }
             });
             // Support touchstart for fast response on mobile
+            // Must NOT be passive so we can call preventDefault when needed
             sidebarOverlay.addEventListener('touchstart', (e) => {
+                // Ignore touches that originate inside the sidebar itself
+                if (asideMenu.contains(e.target)) return;
                 e.preventDefault();
                 asideMenu.classList.remove('open');
                 sidebarOverlay.classList.remove('active');
-            }, { passive: true });
+            }, { passive: false });
         }
     }
 
@@ -192,12 +198,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (chatForm) {
+        // Prevent touch events on chatForm from bubbling up to sidebarOverlay
+        chatForm.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+
         chatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            e.stopPropagation();
             const content = chatInput.value.trim();
             if (!content || isFetching) return;
 
+            const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
             chatInput.disabled = true;
+            // On mobile, blur input first to close keyboard and prevent viewport shifts
+            if (isMobile) chatInput.blur();
+
             try {
                 const res = await fetch('/chat/send', {
                     method: 'POST',
@@ -217,7 +234,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('Chat send error:', err);
             } finally {
                 chatInput.disabled = false;
-                chatInput.focus();
+                // On desktop, restore focus for convenience; on mobile, avoid re-opening keyboard
+                if (!isMobile) chatInput.focus();
             }
         });
     }
