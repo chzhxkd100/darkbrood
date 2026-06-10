@@ -65,7 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let idleTimerId = null;
     let isIdle = false;
     let isChatVisible = true; // Tracks if the chat widget is visible in viewport
-    let isFetching = false;   // Prevents overlapping/duplicate requests
+    let isFetching = false;   // Prevents overlapping/duplicate POLL requests
+    let isSending = false;    // Separate flag for send requests (don't block with isFetching)
     
     const POLL_RATE = 6000; // Increased poll rate to 6 seconds to reduce read counts
     const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
@@ -207,32 +208,33 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation();
             const content = chatInput.value.trim();
-            if (!content || isFetching) return;
+            // Only block if already sending — do NOT block on isFetching (poll)
+            if (!content || isSending) return;
 
             const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
+            isSending = true;
             chatInput.disabled = true;
-            // On mobile, blur input first to close keyboard and prevent viewport shifts
-            if (isMobile) chatInput.blur();
 
             try {
                 const res = await fetch('/chat/send', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ content })
                 });
                 if (res.ok) {
                     chatInput.value = '';
+                    // On mobile: blur after successful send to dismiss keyboard cleanly
+                    if (isMobile) chatInput.blur();
                     resetIdleTimer();
                     await loadChatMessages();
                 } else {
-                    console.error('Failed to send message');
+                    console.error('Failed to send message:', res.status);
                 }
             } catch (err) {
                 console.error('Chat send error:', err);
             } finally {
+                isSending = false;
                 chatInput.disabled = false;
                 // On desktop, restore focus for convenience; on mobile, avoid re-opening keyboard
                 if (!isMobile) chatInput.focus();
