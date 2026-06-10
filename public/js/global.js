@@ -71,9 +71,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const POLL_RATE = 6000; // Increased poll rate to 6 seconds to reduce read counts
     const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
 
-    // Intersection Observer: stops polling when chat is out of view (e.g. scrolled down)
+    // Intersection Observer: stops polling when chat is out of view.
+    // On mobile the aside starts as visibility:hidden which causes Chrome to fire
+    // isIntersecting=false immediately, locking isChatVisible=false forever.
+    // We avoid this by only using the observer on desktop (no aside slide menu).
     const chatWidget = document.querySelector('.chat-widget');
-    if (chatWidget && typeof IntersectionObserver !== 'undefined') {
+    const isMobileLayout = () => window.matchMedia('(max-width: 768px)').matches;
+
+    if (chatWidget && typeof IntersectionObserver !== 'undefined' && !isMobileLayout()) {
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 isChatVisible = entry.isIntersecting;
@@ -199,22 +204,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (chatForm) {
-        // Prevent touch events on chatForm from bubbling up to sidebarOverlay
-        chatForm.addEventListener('touchstart', (e) => {
-            e.stopPropagation();
-        }, { passive: true });
+        const chatSendBtn = chatForm.querySelector('button');
 
-        chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        // Core send logic extracted so both submit and click can call it
+        async function doSendMessage() {
             const content = chatInput.value.trim();
-            // Only block if already sending — do NOT block on isFetching (poll)
             if (!content || isSending) return;
 
-            const isMobile = window.matchMedia('(max-width: 768px)').matches;
+            const isMobile = isMobileLayout();
 
             isSending = true;
             chatInput.disabled = true;
+            if (chatSendBtn) chatSendBtn.disabled = true;
 
             try {
                 const res = await fetch('/chat/send', {
@@ -236,10 +237,29 @@ document.addEventListener('DOMContentLoaded', () => {
             } finally {
                 isSending = false;
                 chatInput.disabled = false;
-                // On desktop, restore focus for convenience; on mobile, avoid re-opening keyboard
-                if (!isMobile) chatInput.focus();
+                if (chatSendBtn) chatSendBtn.disabled = false;
+                // On desktop restore focus; on mobile avoid re-opening keyboard
+                if (!isMobileLayout()) chatInput.focus();
             }
+        }
+
+        // Primary: form submit (Enter key / submit button)
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            doSendMessage();
         });
+
+        // Fallback: direct button click — needed for Chrome Android where form submit
+        // can silently fail inside position:absolute + overflow:hidden ancestors.
+        if (chatSendBtn) {
+            chatSendBtn.addEventListener('click', (e) => {
+                // Only intercept if the form submit event won't fire (mobile Chrome fallback)
+                if (isMobileLayout()) {
+                    e.preventDefault();
+                    doSendMessage();
+                }
+            });
+        }
     }
 
     // ==========================================================================
