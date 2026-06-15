@@ -740,6 +740,56 @@ app.get('/logout', (req, res) => {
 });
 
 // ----------------------------------------------------
+// USER PROFILE
+// ----------------------------------------------------
+app.get('/profile', async (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/login');
+    }
+    
+    try {
+        const userDoc = await db.collection('users').doc(req.session.user.id).get();
+        if (!userDoc.exists) {
+            req.session.user = null;
+            req.saveSession();
+            return res.redirect('/login');
+        }
+        
+        const userData = userDoc.data();
+        res.render('profile', { userData });
+    } catch (err) {
+        console.error('Error in GET /profile:', err.stack || err);
+        res.status(500).send('Database Error');
+    }
+});
+
+app.post('/profile/update', upload.single('profilePic'), async (req, res) => {
+    if (!req.session.user) {
+        return res.status(401).send('Unauthorized');
+    }
+    
+    try {
+        const updateData = {};
+        if (req.file) {
+            const imageUrl = getImageUrl(req, req.file);
+            updateData.profilePictureUrl = imageUrl;
+            // Update session so header can show it immediately
+            req.session.user.profilePictureUrl = imageUrl;
+            req.saveSession();
+        }
+        
+        if (Object.keys(updateData).length > 0) {
+            await db.collection('users').doc(req.session.user.id).update(updateData);
+        }
+        
+        res.redirect('/profile');
+    } catch (err) {
+        console.error('Error in POST /profile/update:', err.stack || err);
+        res.status(500).send('Error updating profile');
+    }
+});
+
+// ----------------------------------------------------
 // ARCHIVE (FILE SHARING)
 // ----------------------------------------------------
 app.get('/archive', async (req, res) => {

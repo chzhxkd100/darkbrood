@@ -91,9 +91,14 @@
             <nav class="nav-categories" aria-label="Navigation Category: Account">
               <span class="navbar-titles">계정 (Account)</span>
               <% if (locals.user) { %>
-                <div style="padding: 6px 12px; font-size: 13px; color: #fff; text-shadow: 1px 1px 2px #000; display: flex; align-items: center; gap: 6px;">
-                  <span class="nav-bullet">✦</span> <strong><%= user.nickname %></strong> 님
-                </div>
+                <a href="/profile" class="<%= path === '/profile' ? 'nav-active' : 'nav-inactive' %>" style="display: flex; align-items: center; gap: 8px; padding-top: 8px; padding-bottom: 8px;">
+                  <% if (user.profilePictureUrl) { %>
+                    <img src="<%= user.profilePictureUrl %>" alt="Profile" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                  <% } else { %>
+                    <span class="nav-bullet">✦</span>
+                  <% } %>
+                  <strong><%= user.nickname %></strong>
+                </a>
                 <a href="/logout" class="nav-inactive">
                   <span class="nav-bullet">✦</span> 로그아웃 (Logout)
                 </a>
