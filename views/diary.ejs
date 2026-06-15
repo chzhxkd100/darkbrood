@@ -16,7 +16,7 @@
       <div class="glass-borders" style="margin-bottom: 20px;">
         <div class="styled-containers aero-borders">
           <h2>새 사념 기록</h2>
-          <form action="/post/new" method="POST" class="post-form">
+          <form action="/post/new" method="POST" enctype="multipart/form-data" class="post-form">
             <input type="hidden" name="type" value="diary" />
             <div class="form-group">
               <label for="title">사념 제목</label>
@@ -25,6 +25,10 @@
             <div class="form-group">
               <label for="content">생각의 파편</label>
               <textarea id="content" name="content" required rows="7" placeholder="여기에 어둠과 코드를 기록한다..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="image">이미지 첨부 (최대 1개)</label>
+              <input type="file" id="image" name="image" accept="image/*" class="file-input" />
             </div>
             <button type="submit" class="submit-btn">기록 각인하기</button>
           </form>
@@ -85,8 +89,17 @@
                 <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
               </div>
             </div>
-            <div class="post-content diary-post-content" style="margin-top: 10px;">
-              <%= post.content %>
+            <div class="post-body diary-post-content" style="margin-top: 10px;">
+              <% if (post.imageUrl) { %>
+                <div class="post-image-container">
+                  <a href="<%= post.imageUrl %>" class="lightbox-trigger" title="클릭하여 확대">
+                    <img src="<%= post.imageUrl %>" alt="첨부 이미지" class="post-thumbnail" />
+                  </a>
+                </div>
+              <% } %>
+              <div class="post-text-content">
+                <%= post.content %>
+              </div>
             </div>
             
             <% 

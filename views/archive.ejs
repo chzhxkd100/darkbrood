@@ -1,0 +1,92 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>자료실 (Archive)</h1>
+  </header>
+
+  <!-- Toggle write form button -->
+  <div style="margin-bottom: 20px;">
+    <button type="button" class="submit-btn" id="toggleUploadBtn" onclick="toggleUploadForm()">파일 업로드</button>
+  </div>
+
+  <!-- Upload Form -->
+  <div id="uploadFormContainer" style="display: none;">
+    <div class="glass-borders" style="margin-bottom: 20px;">
+      <div class="styled-containers aero-borders">
+        <h2>파일 공유하기</h2>
+        <form action="/archive/upload" method="POST" enctype="multipart/form-data" class="post-form">
+          <div class="form-group">
+            <label for="file">첨부 파일 (최대 50MB)</label>
+            <input type="file" id="file" name="file" class="file-input" required />
+          </div>
+          <button type="submit" class="submit-btn">업로드</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function toggleUploadForm() {
+      var container = document.getElementById('uploadFormContainer');
+      var btn = document.getElementById('toggleUploadBtn');
+      if (container.style.display === 'none') {
+        container.style.display = 'block';
+        btn.textContent = '업로드 취소';
+      } else {
+        container.style.display = 'none';
+        btn.textContent = '파일 업로드';
+      }
+    }
+  </script>
+
+  <!-- File list -->
+  <div class="archive-list-container">
+    <% if (files && files.length > 0) { %>
+      <div class="glass-borders">
+        <div class="styled-containers aero-borders">
+          <table style="width: 100%; text-align: left; border-collapse: collapse; color: #fff;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <th style="padding: 10px;">파일명</th>
+                <th style="padding: 10px;">크기</th>
+                <th style="padding: 10px;">업로더</th>
+                <th style="padding: 10px;">다운로드 횟수</th>
+                <th style="padding: 10px;">액션</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% files.forEach(file => { %>
+                <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                  <td style="padding: 10px; word-break: break-all;"><%= file.originalName %></td>
+                  <td style="padding: 10px; white-space: nowrap;"><%= (file.size / 1024 / 1024).toFixed(2) %> MB</td>
+                  <td style="padding: 10px; white-space: nowrap;"><%= file.uploaderNickname || `익명 (${file.uploaderIp})` %></td>
+                  <td style="padding: 10px;"><%= file.downloadCount || 0 %></td>
+                  <td style="padding: 10px;">
+                    <a href="/archive/download/<%= file.id %>" class="submit-btn" style="text-decoration: none; padding: 5px 10px; font-size: 12px; display: inline-block;">다운로드</a>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    <% } else { %>
+      <div class="glass-borders">
+        <div class="styled-containers aero-borders" style="text-align: center; color: #888; padding: 30px;">
+          업로드된 파일이 없습니다.
+        </div>
+      </div>
+    <% } %>
+  </div>
+
+  <!-- Pagination Controls -->
+  <%- include('partials/pagination', { 
+      currentPage: currentPage, 
+      totalPages: totalPages, 
+      basePath: '/archive', 
+      filterParam: '' 
+  }) %>
+</section>
+
+<%- include('footer') %>

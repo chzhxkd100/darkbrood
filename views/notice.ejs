@@ -16,7 +16,7 @@
       <div class="glass-borders" style="margin-bottom: 20px;">
         <div class="styled-containers aero-borders">
           <h2>새 안내사항 작성 (Operators Only)</h2>
-          <form action="/post/new" method="POST" class="post-form">
+          <form action="/post/new" method="POST" enctype="multipart/form-data" class="post-form">
             <input type="hidden" name="type" value="notice" />
             <div class="form-group">
               <label for="title">제목</label>
@@ -25,6 +25,10 @@
             <div class="form-group">
               <label for="content">본문</label>
               <textarea id="content" name="content" required rows="5" placeholder="전달할 내용..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="image">이미지 첨부 (최대 1개)</label>
+              <input type="file" id="image" name="image" accept="image/*" class="file-input" />
             </div>
             <button type="submit" class="submit-btn">심연에 공표하기</button>
           </form>
@@ -57,8 +61,17 @@
               <span class="post-title"><%= notice.title %></span>
               <span class="post-date" data-timestamp="<%= notice.createdAt %>"></span>
             </div>
-            <div class="post-content">
-              <%= notice.content %>
+            <div class="post-body post-content">
+              <% if (notice.imageUrl) { %>
+                <div class="post-image-container">
+                  <a href="<%= notice.imageUrl %>" class="lightbox-trigger" title="클릭하여 확대">
+                    <img src="<%= notice.imageUrl %>" alt="첨부 이미지" class="post-thumbnail" />
+                  </a>
+                </div>
+              <% } %>
+              <div class="post-text-content">
+                <%= notice.content %>
+              </div>
             </div>
             <% if (isAdmin) { %>
               <div class="post-admin-actions">

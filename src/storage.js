@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 let upload;
+let fileUpload;
 const useGCS = (process.env.NODE_ENV === 'production' || process.env.GCS_BUCKET_NAME) ? true : false;
 
 if (useGCS) {
@@ -28,6 +29,11 @@ if (useGCS) {
         storage: multerGoogleStorage.storageEngine(config),
         limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
     });
+    
+    fileUpload = multer({
+        storage: multerGoogleStorage.storageEngine(config),
+        limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+    });
 } else {
     console.log('Configuring local filesystem storage for image uploads...');
     const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
@@ -50,10 +56,16 @@ if (useGCS) {
         storage: storage,
         limits: { fileSize: 5 * 1024 * 1024 }
     });
+    
+    fileUpload = multer({
+        storage: storage,
+        limits: { fileSize: 50 * 1024 * 1024 }
+    });
 }
 
 module.exports = {
     upload,
+    fileUpload,
     getImageUrl: (req, file) => {
         if (!file) return null;
         if (useGCS) {

@@ -3,7 +3,7 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./db');
-const { upload, getImageUrl } = require('./storage');
+const { upload, fileUpload, getImageUrl } = require('./storage');
 
 // Helper to hash password using SHA-256
 function hashPassword(password) {
@@ -401,7 +401,7 @@ app.get('/community', async (req, res) => {
 });
 
 // Post creation for Diary & Notice
-app.post('/post/new', async (req, res) => {
+app.post('/post/new', upload.single('image'), async (req, res) => {
     const { type, title, content } = req.body;
     if (!['diary', 'notice'].includes(type)) {
         return res.status(400).send('Invalid post type');
@@ -416,11 +416,12 @@ app.post('/post/new', async (req, res) => {
     }
     
     try {
+        const imageUrl = getImageUrl(req, req.file);
         const postData = {
             type,
             title,
             content,
-            imageUrl: null,
+            imageUrl,
             authorIp: req.ip,
             createdAt: Date.now()
         };
@@ -736,6 +737,111 @@ app.get('/logout', (req, res) => {
     // Delete the __session cookie
     res.setHeader('Set-Cookie', `__session=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
     res.redirect('/');
+});
+
+// ----------------------------------------------------
+// ARCHIVE (FILE SHARING)
+// ----------------------------------------------------
+app.get('/archive', async (req, res) => {
+    try {
+        const filesSnap = await db.collection('shared_files')
+            .orderBy('createdAt', 'desc')
+            .get();
+        
+        let files = filesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // Pagination logic
+        const currentPage = parseInt(req.query.page) || 1;
+        const limit = 10;
+        const totalFiles = files.length;
+        const totalPages = Math.ceil(totalFiles / limit) || 1;
+        
+        const page = Math.max(1, Math.min(currentPage, totalPages));
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        
+        const pagedFiles = files.slice(startIndex, endIndex);
+        
+        res.render('archive', { 
+            files: pagedFiles, 
+            currentPage: page, 
+            totalPages 
+        });
+    } catch (err) {
+        console.error('Error in GET /archive:', err.stack || err);
+        res.status(500).send('Database Error');
+    }
+});
+
+app.post('/archive/upload', fileUpload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+    }
+    
+    // Authorization check - decide policy here. Let's allow users to upload.
+    // We could restrict to logged in or admin, but for now allow all.
+    // If we want restriction: if(!req.session.user && !req.session.isAdmin) return res.status(403)...
+    
+    try {
+        const storageUrl = getImageUrl(req, req.file); // Reuse this function to get URL or path
+        const fileData = {
+            originalName: req.file.originalname,
+            storageUrl,
+            size: req.file.size,
+            mimeType: req.file.mimetype,
+            uploaderIp: req.session.anonId || '익명',
+            downloadCount: 0,
+            createdAt: Date.now()
+        };
+
+        if (req.session.user) {
+            fileData.uploaderNickname = req.session.user.nickname;
+        } else if (req.session.isAdmin) {
+            fileData.uploaderNickname = '운영자';
+        }
+
+        await db.collection('shared_files').add(fileData);
+        res.redirect('/archive');
+    } catch (err) {
+        console.error('Error in POST /archive/upload:', err.stack || err);
+        res.status(500).send('Error uploading file');
+    }
+});
+
+app.get('/archive/download/:id', async (req, res) => {
+    try {
+        const fileId = req.params.id;
+        const fileRef = db.collection('shared_files').doc(fileId);
+        const fileDoc = await fileRef.get();
+        
+        if (!fileDoc.exists) {
+            return res.status(404).send('File not found');
+        }
+        
+        const fileData = fileDoc.data();
+        
+        // Increment download count
+        await fileRef.update({
+            downloadCount: (fileData.downloadCount || 0) + 1
+        });
+        
+        // Redirect to the URL. For local, it might be /uploads/filename.
+        // If it's a local file, we could do res.download to force download with originalName, 
+        // but for simplicity and GCS support, we redirect. 
+        // A direct redirect will work for GCS if uniform bucket level access allows it.
+        // If it's local (e.g. /uploads/...), a redirect will just serve the file via express.static.
+        // We can check if it starts with /uploads/ and use res.download to force the name.
+        if (fileData.storageUrl.startsWith('/uploads/')) {
+            const localPath = path.join(__dirname, '..', 'public', fileData.storageUrl);
+            res.download(localPath, fileData.originalName);
+        } else {
+            res.redirect(fileData.storageUrl);
+        }
+        
+    } catch (err) {
+        console.error('Error in GET /archive/download/:id:', err.stack || err);
+        res.status(500).send('Error downloading file');
+    }
 });
 
 // Start Server
