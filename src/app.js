@@ -196,64 +196,6 @@ async function attachCommentsToPosts(posts) {
 async function seedPatchNotes() {
     try {
         // ----------------------------------------------------
-        // v1.1.0 Patch Note
-        // ----------------------------------------------------
-        const patchTitle110 = '[v1.1.0] 패치노트';
-        
-        // Clean up any older/incorrectly titled v1.1.0 notice posts if they exist
-        const oldTitles110 = [
-            '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)',
-            'DarkBrood v1.1.0 패치노트'
-        ];
-        for (const title of oldTitles110) {
-            const oldSnap = await db.collection('posts')
-                .where('type', '==', 'notice')
-                .where('title', '==', title)
-                .get();
-            for (const doc of oldSnap.docs) {
-                await db.collection('posts').doc(doc.id).delete();
-            }
-        }
-
-        const noticeSnap110 = await db.collection('posts')
-            .where('type', '==', 'notice')
-            .where('title', '==', patchTitle110)
-            .get();
-            
-        const contentStr110 = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
-
-- 대댓글(답글) 기능 도입
-- 작성자 글 모아보기 기능 추가 (커뮤니티)
-- 본문 내 이미지 확대/축소 기능 구현
-- 공지사항 및 일기 댓글 작성 기능 추가
-
-더 깊고 고독한 사색을 즐기시길 바랍니다.`;
-
-        if (noticeSnap110.docs.length > 0) {
-            const docId = noticeSnap110.docs[0].id;
-            await db.collection('posts').doc(docId).set({
-                type: 'notice',
-                title: patchTitle110,
-                content: contentStr110,
-                imageUrl: null,
-                authorIp: '127.0.0.1',
-                authorNickname: '운영자',
-                createdAt: noticeSnap110.docs[0].data().createdAt || Date.now()
-            });
-        } else {
-            console.log('Publishing v1.1.0 patch notes notice...');
-            await db.collection('posts').add({
-                type: 'notice',
-                title: patchTitle110,
-                content: contentStr110,
-                imageUrl: null,
-                authorIp: '127.0.0.1',
-                authorNickname: '운영자',
-                createdAt: Date.now()
-            });
-        }
-
-        // ----------------------------------------------------
         // v1.2.0 Patch Note
         // ----------------------------------------------------
         const patchTitle120 = '[v1.2.0] 패치노트';
