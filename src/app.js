@@ -195,24 +195,32 @@ async function attachCommentsToPosts(posts) {
 // Automatic patch notes notice registration
 async function seedPatchNotes() {
     try {
-        const patchTitle = 'DarkBrood v1.1.0 패치노트';
+        // ----------------------------------------------------
+        // v1.1.0 Patch Note
+        // ----------------------------------------------------
+        const patchTitle110 = '[v1.1.0] 패치노트';
         
-        // Delete older version with emoji title if exists
-        const oldTitle = '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)';
-        const oldSnap = await db.collection('posts')
-            .where('type', '==', 'notice')
-            .where('title', '==', oldTitle)
-            .get();
-        for (const doc of oldSnap.docs) {
-            await db.collection('posts').doc(doc.id).delete();
+        // Clean up any older/incorrectly titled v1.1.0 notice posts if they exist
+        const oldTitles110 = [
+            '📢 DarkBrood v1.1.0 패치노트 (기능 개선 안내)',
+            'DarkBrood v1.1.0 패치노트'
+        ];
+        for (const title of oldTitles110) {
+            const oldSnap = await db.collection('posts')
+                .where('type', '==', 'notice')
+                .where('title', '==', title)
+                .get();
+            for (const doc of oldSnap.docs) {
+                await db.collection('posts').doc(doc.id).delete();
+            }
         }
 
-        const noticeSnap = await db.collection('posts')
+        const noticeSnap110 = await db.collection('posts')
             .where('type', '==', 'notice')
-            .where('title', '==', patchTitle)
+            .where('title', '==', patchTitle110)
             .get();
             
-        const contentStr = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
+        const contentStr110 = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
 
 - 대댓글(답글) 기능 도입
 - 작성자 글 모아보기 기능 추가 (커뮤니티)
@@ -221,29 +229,87 @@ async function seedPatchNotes() {
 
 더 깊고 고독한 사색을 즐기시길 바랍니다.`;
 
-        if (noticeSnap.docs.length > 0) {
-            const docId = noticeSnap.docs[0].id;
+        if (noticeSnap110.docs.length > 0) {
+            const docId = noticeSnap110.docs[0].id;
             await db.collection('posts').doc(docId).set({
                 type: 'notice',
-                title: patchTitle,
-                content: contentStr,
+                title: patchTitle110,
+                content: contentStr110,
                 imageUrl: null,
                 authorIp: '127.0.0.1',
                 authorNickname: '운영자',
-                createdAt: noticeSnap.docs[0].data().createdAt || Date.now()
+                createdAt: noticeSnap110.docs[0].data().createdAt || Date.now()
             });
         } else {
             console.log('Publishing v1.1.0 patch notes notice...');
             await db.collection('posts').add({
                 type: 'notice',
-                title: patchTitle,
-                content: contentStr,
+                title: patchTitle110,
+                content: contentStr110,
                 imageUrl: null,
                 authorIp: '127.0.0.1',
                 authorNickname: '운영자',
                 createdAt: Date.now()
             });
         }
+
+        // ----------------------------------------------------
+        // v1.2.0 Patch Note
+        // ----------------------------------------------------
+        const patchTitle120 = '[v1.2.0] 패치노트';
+        
+        // Clean up any older/incorrectly titled v1.2.0 notice posts if they exist
+        const oldTitles120 = [
+            'DarkBrood v1.2.0 패치노트'
+        ];
+        for (const title of oldTitles120) {
+            const oldSnap = await db.collection('posts')
+                .where('type', '==', 'notice')
+                .where('title', '==', title)
+                .get();
+            for (const doc of oldSnap.docs) {
+                await db.collection('posts').doc(doc.id).delete();
+            }
+        }
+
+        const noticeSnap120 = await db.collection('posts')
+            .where('type', '==', 'notice')
+            .where('title', '==', patchTitle120)
+            .get();
+            
+        const contentStr120 = `어두운 심연에서 거주하는 자들이여, 다음과 같이 편의 기능 개선이 적용되었습니다.
+
+- 타인의 상세 정보를 볼 수 있는 공개 프로필 기능 도입
+- 작성글 모아보기 및 페이지 이동 기능 구현
+- 작성자 프로필 사진 확대 표시 적용
+- 게시글 검색 조건 및 필터 제공
+
+더 깊고 고독한 사색을 즐기시길 바랍니다.`;
+
+        if (noticeSnap120.docs.length > 0) {
+            const docId = noticeSnap120.docs[0].id;
+            await db.collection('posts').doc(docId).set({
+                type: 'notice',
+                title: patchTitle120,
+                content: contentStr120,
+                imageUrl: null,
+                authorIp: '127.0.0.1',
+                authorNickname: '운영자',
+                createdAt: noticeSnap120.docs[0].data().createdAt || Date.now()
+            });
+        } else {
+            console.log('Publishing v1.2.0 patch notes notice...');
+            await db.collection('posts').add({
+                type: 'notice',
+                title: patchTitle120,
+                content: contentStr120,
+                imageUrl: null,
+                authorIp: '127.0.0.1',
+                authorNickname: '운영자',
+                createdAt: Date.now()
+            });
+        }
+
     } catch (err) {
         console.error('Error seeding patch notes:', err);
     }
