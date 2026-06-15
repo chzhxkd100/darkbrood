@@ -69,25 +69,59 @@
     </div>
   <% } %>
 
+  <!-- Search Filter Notification -->
+  <% if (locals.searchQuery) { %>
+    <div class="glass-borders" style="margin-bottom: 20px;">
+      <div class="styled-containers aero-borders" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px;">
+        <span style="color: #fff; font-size: 13.5px;">
+          검색어 <strong style="color: var(--accent-color);">"<%= searchQuery %>"</strong> (검색 분류: <%= searchType === 'title' ? '제목' : (searchType === 'content' ? '내용' : (searchType === 'author' ? '작성자' : '통합')) %>) 검색 결과입니다.
+        </span>
+        <a href="/diary" class="submit-btn" style="text-decoration: none; padding: 4px 12px; font-size: 12px;">전체 보기</a>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Search Bar -->
+  <div class="glass-borders" style="margin-bottom: 20px;">
+    <form action="/diary" method="GET" style="display: flex; gap: 8px; padding: 10px; align-items: center; margin: 0;" class="styled-containers aero-borders">
+      <select name="searchType" style="background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; font-size: 13px; outline: none; cursor: pointer;">
+        <option value="all" <%= locals.searchType === 'all' ? 'selected' : '' %>>통합 검색</option>
+        <option value="title" <%= locals.searchType === 'title' ? 'selected' : '' %>>제목</option>
+        <option value="content" <%= locals.searchType === 'content' ? 'selected' : '' %>>내용</option>
+        <option value="author" <%= locals.searchType === 'author' ? 'selected' : '' %>>작성자</option>
+      </select>
+      <input type="text" name="searchQuery" value="<%= locals.searchQuery || '' %>" placeholder="사념 검색..." required style="flex: 1; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; padding: 8px 12px; font-size: 13px; outline: none;" />
+      <button type="submit" class="submit-btn" style="padding: 8px 15px; font-size: 13px; margin: 0; white-space: nowrap;">검색</button>
+    </form>
+  </div>
+
   <!-- Diary list -->
   <div class="diary-list-container">
     <% if (posts && posts.length > 0) { %>
       <% posts.forEach(post => { %>
-        <div class="glass-borders">
+        <div class="glass-borders" id="post-<%= post.id %>">
           <article class="styled-containers aero-borders">
             <div class="post-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
               <span class="post-title"><%= post.title %></span>
               <div style="display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary);">
-                <span style="display: inline-flex; align-items: center; gap: 4px;">작성자: 
+                <span style="display: inline-flex; align-items: center; gap: 6px;">작성자: 
                   <% const authorName = post.authorNickname || '운영자'; %>
                   <% if (locals.usersMap && usersMap[authorName]) { %>
-                    <img src="<%= usersMap[authorName] %>" alt="Profile" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                    <img src="<%= usersMap[authorName] %>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-color); box-shadow: 0 0 5px var(--accent-glow);" />
                   <% } %>
-                  <a href="/diary?author=<%= encodeURIComponent(authorName) %>" 
-                     title="<%= authorName %> 님의 글만 보기" 
-                     style="color: var(--accent-color); font-weight: bold; text-decoration: underline;">
-                    <%= authorName %>
-                  </a>
+                  <% if (post.authorId) { %>
+                    <a href="/profile/<%= post.authorId %>" 
+                       title="<%= authorName %> 님의 프로필 보기" 
+                       style="color: var(--accent-color); font-weight: bold; text-decoration: underline;">
+                      <%= authorName %>
+                    </a>
+                  <% } else { %>
+                    <a href="/diary?author=<%= encodeURIComponent(authorName) %>" 
+                       title="<%= authorName %> 님의 글만 보기" 
+                       style="color: var(--accent-color); font-weight: bold; text-decoration: underline;">
+                      <%= authorName %>
+                    </a>
+                  <% } %>
                 </span>
                 <span>|</span>
                 <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
@@ -144,7 +178,8 @@
       currentPage: currentPage, 
       totalPages: totalPages, 
       basePath: '/diary', 
-      filterParam: authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' 
+      filterParam: (locals.authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '') + 
+                   (locals.searchQuery ? '&searchQuery=' + encodeURIComponent(searchQuery) + '&searchType=' + encodeURIComponent(searchType) : '')
   }) %>
 </section>
 

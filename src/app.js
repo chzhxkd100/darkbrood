@@ -301,6 +301,28 @@ app.get('/diary', async (req, res) => {
             allPosts = allPosts.filter(post => post.authorNickname === authorFilter);
         }
         
+        // Search filtering
+        const searchQuery = req.query.searchQuery ? req.query.searchQuery.trim() : null;
+        const searchType = req.query.searchType ? req.query.searchType.trim() : 'all';
+        if (searchQuery) {
+            const queryLower = searchQuery.toLowerCase();
+            allPosts = allPosts.filter(post => {
+                if (searchType === 'title') {
+                    return post.title && post.title.toLowerCase().includes(queryLower);
+                } else if (searchType === 'content') {
+                    return post.content && post.content.toLowerCase().includes(queryLower);
+                } else if (searchType === 'author') {
+                    return (post.authorNickname && post.authorNickname.toLowerCase().includes(queryLower)) ||
+                           (post.authorIp && post.authorIp.toLowerCase().includes(queryLower));
+                } else { // 'all'
+                    return (post.title && post.title.toLowerCase().includes(queryLower)) ||
+                           (post.content && post.content.toLowerCase().includes(queryLower)) ||
+                           (post.authorNickname && post.authorNickname.toLowerCase().includes(queryLower)) ||
+                           (post.authorIp && post.authorIp.toLowerCase().includes(queryLower));
+                }
+            });
+        }
+        
         // Pagination logic
         const currentPage = parseInt(req.query.page) || 1;
         const limit = 5; // 5 posts per page
@@ -321,7 +343,9 @@ app.get('/diary', async (req, res) => {
             posts, 
             currentPage: page,
             totalPages,
-            authorFilter 
+            authorFilter,
+            searchQuery,
+            searchType
         });
     } catch (err) {
         console.error('Error in GET /diary:', err.stack || err);
@@ -386,6 +410,28 @@ app.get('/community', async (req, res) => {
             });
         }
         
+        // Search filtering
+        const searchQuery = req.query.searchQuery ? req.query.searchQuery.trim() : null;
+        const searchType = req.query.searchType ? req.query.searchType.trim() : 'all';
+        if (searchQuery) {
+            const queryLower = searchQuery.toLowerCase();
+            allPosts = allPosts.filter(post => {
+                if (searchType === 'title') {
+                    return post.title && post.title.toLowerCase().includes(queryLower);
+                } else if (searchType === 'content') {
+                    return post.content && post.content.toLowerCase().includes(queryLower);
+                } else if (searchType === 'author') {
+                    return (post.authorNickname && post.authorNickname.toLowerCase().includes(queryLower)) ||
+                           (post.authorIp && post.authorIp.toLowerCase().includes(queryLower));
+                } else { // 'all'
+                    return (post.title && post.title.toLowerCase().includes(queryLower)) ||
+                           (post.content && post.content.toLowerCase().includes(queryLower)) ||
+                           (post.authorNickname && post.authorNickname.toLowerCase().includes(queryLower)) ||
+                           (post.authorIp && post.authorIp.toLowerCase().includes(queryLower));
+                }
+            });
+        }
+        
         // Pagination logic
         const currentPage = parseInt(req.query.page) || 1;
         const limit = 5; // 5 posts per page
@@ -406,7 +452,9 @@ app.get('/community', async (req, res) => {
             posts, 
             currentPage: page, 
             totalPages,
-            authorFilter
+            authorFilter,
+            searchQuery,
+            searchType
         });
     } catch (err) {
         console.error('Error in GET /community:', err.stack || err);
@@ -756,23 +804,39 @@ app.get('/logout', (req, res) => {
 // ----------------------------------------------------
 // USER PROFILE
 // ----------------------------------------------------
-app.get('/profile', async (req, res) => {
+app.get('/profile', (req, res) => {
     if (!req.session.user) {
         return res.redirect('/login');
     }
-    
+    res.redirect(`/profile/${req.session.user.id}`);
+});
+
+app.get('/profile/:id', async (req, res) => {
     try {
-        const userDoc = await db.collection('users').doc(req.session.user.id).get();
+        const userId = req.params.id;
+        const userDoc = await db.collection('users').doc(userId).get();
         if (!userDoc.exists) {
-            req.session.user = null;
-            req.saveSession();
-            return res.redirect('/login');
+            return res.status(404).send('User not found');
         }
         
         const userData = userDoc.data();
-        res.render('profile', { userData });
+        
+        // Fetch all posts to filter in memory (safeguard against complex GCP index errors)
+        const postsSnap = await db.collection('posts').get();
+        const allPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const userPosts = allPosts
+            .filter(post => post.authorId === userId || (post.authorNickname && post.authorNickname === userData.nickname))
+            .sort((a, b) => b.createdAt - a.createdAt);
+            
+        const isOwnProfile = (req.session.user && req.session.user.id === userId) ? true : false;
+        
+        res.render('profile', { 
+            userData: { id: userId, ...userData }, 
+            userPosts, 
+            isOwnProfile 
+        });
     } catch (err) {
-        console.error('Error in GET /profile:', err.stack || err);
+        console.error('Error in GET /profile/:id:', err.stack || err);
         res.status(500).send('Database Error');
     }
 });

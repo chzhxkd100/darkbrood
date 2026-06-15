@@ -60,24 +60,53 @@
     </div>
   <% } %>
 
+  <!-- Search Filter Notification -->
+  <% if (locals.searchQuery) { %>
+    <div class="glass-borders" style="margin-bottom: 20px;">
+      <div class="styled-containers aero-borders" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 15px;">
+        <span style="color: #fff; font-size: 13.5px;">
+          검색어 <strong style="color: var(--accent-color);">"<%= searchQuery %>"</strong> (검색 분류: <%= searchType === 'title' ? '제목' : (searchType === 'content' ? '내용' : (searchType === 'author' ? '작성자' : '통합')) %>) 검색 결과입니다.
+        </span>
+        <a href="/community" class="submit-btn" style="text-decoration: none; padding: 4px 12px; font-size: 12px;">전체 보기</a>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Search Bar -->
+  <div class="glass-borders" style="margin-bottom: 20px;">
+    <form action="/community" method="GET" style="display: flex; gap: 8px; padding: 10px; align-items: center; margin: 0;" class="styled-containers aero-borders">
+      <select name="searchType" style="background: rgba(0,0,0,0.6); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; padding: 8px 12px; font-size: 13px; outline: none; cursor: pointer;">
+        <option value="all" <%= locals.searchType === 'all' ? 'selected' : '' %>>통합 검색</option>
+        <option value="title" <%= locals.searchType === 'title' ? 'selected' : '' %>>제목</option>
+        <option value="content" <%= locals.searchType === 'content' ? 'selected' : '' %>>내용</option>
+        <option value="author" <%= locals.searchType === 'author' ? 'selected' : '' %>>작성자</option>
+      </select>
+      <input type="text" name="searchQuery" value="<%= locals.searchQuery || '' %>" placeholder="심연 검색..." required style="flex: 1; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: #fff; padding: 8px 12px; font-size: 13px; outline: none;" />
+      <button type="submit" class="submit-btn" style="padding: 8px 15px; font-size: 13px; margin: 0; white-space: nowrap;">검색</button>
+    </form>
+  </div>
+
   <!-- Anonymous Posts list -->
   <div class="community-list-container">
     <% if (posts && posts.length > 0) { %>
       <% posts.forEach(post => { %>
-        <div class="glass-borders">
+        <div class="glass-borders" id="post-<%= post.id %>">
           <article class="styled-containers aero-borders community-post">
             <!-- Post Info Header -->
             <div class="post-header">
-              <span class="post-author" style="display: inline-flex; align-items: center; gap: 6px;">
-                <% if (post.authorNickname) { %>
+              <span class="post-author" style="display: inline-flex; align-items: center; gap: 8px;">
+                <% if (post.authorNickname && post.authorId) { %>
                   <% if (locals.usersMap && usersMap[post.authorNickname]) { %>
-                    <img src="<%= usersMap[post.authorNickname] %>" alt="Profile" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                    <img src="<%= usersMap[post.authorNickname] %>" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-color); box-shadow: 0 0 5px var(--accent-glow);" />
                   <% } %>
-                  <a href="/community?author=<%= encodeURIComponent(post.authorNickname) %>" title="<%= post.authorNickname %> 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline;">
+                  <a href="/profile/<%= post.authorId %>" title="<%= post.authorNickname %> 님의 프로필 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline; font-size: 14px;">
                     <%= post.authorNickname %>
                   </a>
+                <% } else if (post.authorNickname) { %>
+                  <!-- Legacy/Admin without ID -->
+                  <span style="color: #cc6666; font-weight: bold; font-size: 14px;"><%= post.authorNickname %></span>
                 <% } else { %>
-                  <a href="/community?author=<%= encodeURIComponent(post.authorIp) %>" title="익명(<%= post.authorIp %>) 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline;">
+                  <a href="/community?author=<%= encodeURIComponent(post.authorIp) %>" title="익명(<%= post.authorIp %>) 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline; font-size: 14px;">
                     익명 (<%= post.authorIp %>)
                   </a>
                 <% } %>
@@ -129,7 +158,8 @@
       currentPage: currentPage, 
       totalPages: totalPages, 
       basePath: '/community', 
-      filterParam: authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '' 
+      filterParam: (locals.authorFilter ? '&author=' + encodeURIComponent(authorFilter) : '') + 
+                   (locals.searchQuery ? '&searchQuery=' + encodeURIComponent(searchQuery) + '&searchType=' + encodeURIComponent(searchType) : '')
   }) %>
 </section>
 

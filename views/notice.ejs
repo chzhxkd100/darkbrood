@@ -55,7 +55,7 @@
   <div class="notice-list-container">
     <% if (notices && notices.length > 0) { %>
       <% notices.forEach(notice => { %>
-        <div class="glass-borders">
+        <div class="glass-borders" id="post-<%= notice.id %>">
           <article class="styled-containers aero-borders">
             <div class="post-header">
               <span class="post-title"><%= notice.title %></span>

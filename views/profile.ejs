@@ -2,7 +2,7 @@
 
 <section>
   <header>
-    <h1>계정 프로필 (Profile)</h1>
+    <h1><%= isOwnProfile ? '내 계정 프로필' : userData.nickname + ' 님의 프로필' %></h1>
   </header>
 
   <div class="glass-borders" style="margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
@@ -32,27 +32,56 @@
         </div>
       </div>
 
-      <!-- Edit Section -->
+      <!-- Edit Section (Only if isOwnProfile is true) -->
+      <% if (isOwnProfile) { %>
+        <div style="border-top: 1px dashed rgba(255, 255, 255, 0.15); padding-top: 20px; margin-top: 25px;">
+          <h3 style="margin-bottom: 15px; font-size: 13.5px; color: var(--accent-color); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">프로필 수정 (Edit Profile)</h3>
+          
+          <form action="/profile/update" method="POST" enctype="multipart/form-data" class="post-form">
+            <!-- Bio Input -->
+            <div class="form-group" style="margin-bottom: 15px;">
+              <label for="bio" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">자기소개 (Bio)</label>
+              <textarea id="bio" name="bio" rows="3" placeholder="당신의 사상이나 고독의 깊이를 적어주세요..." style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 10px; font-size: 13px; font-family: inherit; outline: none; resize: vertical; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255, 255, 255, 0.1)'"><%= userData.bio || '' %></textarea>
+            </div>
+            
+            <!-- Image Input -->
+            <div class="form-group" style="margin-bottom: 20px;">
+              <label for="profilePic" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">프로필 사진 변경 (최대 5MB, 이미지 파일만 가능)</label>
+              <input type="file" id="profilePic" name="profilePic" accept="image/*" class="file-input" style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 6px 10px; font-size: 12px; color: var(--text-secondary);" />
+            </div>
+            
+            <button type="submit" class="submit-btn" style="width: 100%; padding: 10px; font-weight: bold; letter-spacing: 0.5px;">변경사항 저장</button>
+          </form>
+        </div>
+      <% } %>
+
+      <!-- User's Posts Section -->
       <div style="border-top: 1px dashed rgba(255, 255, 255, 0.15); padding-top: 20px; margin-top: 25px;">
-        <h3 style="margin-bottom: 15px; font-size: 13.5px; color: var(--accent-color); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">프로필 수정 (Edit Profile)</h3>
-        
-        <form action="/profile/update" method="POST" enctype="multipart/form-data" class="post-form">
-          
-          <!-- Bio Input -->
-          <div class="form-group" style="margin-bottom: 15px;">
-            <label for="bio" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">자기소개 (Bio)</label>
-            <textarea id="bio" name="bio" rows="3" placeholder="당신의 사상이나 고독의 깊이를 적어주세요..." style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 10px; font-size: 13px; font-family: inherit; outline: none; resize: vertical; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255, 255, 255, 0.1)'"><%= userData.bio || '' %></textarea>
+        <h3 style="margin-bottom: 15px; font-size: 13.5px; color: var(--accent-color); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">작성한 글 (Posts)</h3>
+        <% if (userPosts && userPosts.length > 0) { %>
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <% userPosts.forEach(post => { %>
+              <div class="styled-containers-layer-2 aero-borders" style="padding: 12px 15px; background: rgba(0, 0, 0, 0.3); border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); display: flex; justify-content: space-between; align-items: center; gap: 15px;">
+                <div style="flex: 1; min-width: 0;">
+                  <span style="font-size: 10px; text-transform: uppercase; color: var(--accent-color); font-weight: bold; border: 1px solid var(--accent-color); padding: 1.5px 5px; border-radius: 3px; margin-right: 8px; font-family: monospace;">
+                    <%= post.type === 'diary' ? 'Diary' : (post.type === 'notice' ? 'Notice' : 'Community') %>
+                  </span>
+                  <a href="<%= post.type === 'diary' ? '/diary' : (post.type === 'notice' ? '/notice' : '/community') %>#post-<%= post.id %>" style="font-weight: bold; color: #fff; font-size: 13.5px; text-decoration: none; word-break: break-all;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                    <%= post.title || '무제' %>
+                  </a>
+                  <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; word-break: break-all;">
+                    <%= post.content %>
+                  </p>
+                </div>
+                <span class="post-date" data-timestamp="<%= post.createdAt %>" style="font-size: 11px; color: var(--text-secondary); white-space: nowrap;"></span>
+              </div>
+            <% }) %>
           </div>
-          
-          <!-- Image Input -->
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label for="profilePic" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">프로필 사진 변경 (최대 5MB, 이미지 파일만 가능)</label>
-            <input type="file" id="profilePic" name="profilePic" accept="image/*" class="file-input" style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 6px 10px; font-size: 12px; color: var(--text-secondary);" />
-          </div>
-          
-          <button type="submit" class="submit-btn" style="width: 100%; padding: 10px; font-weight: bold; letter-spacing: 0.5px;">변경사항 저장</button>
-        </form>
+        <% } else { %>
+          <p style="color: var(--text-secondary); font-size: 12.5px; font-style: italic; opacity: 0.6; text-align: center; padding: 15px 0;">아직 작성한 글이 없습니다.</p>
+        <% } %>
       </div>
+
     </div>
   </div>
 

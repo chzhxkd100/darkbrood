@@ -13,10 +13,14 @@
           <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
             <div>
               <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
-                <% if (comment.authorNickname) { %>
+                <% if (comment.authorNickname && comment.authorId) { %>
                   <% if (locals.usersMap && usersMap[comment.authorNickname]) { %>
-                    <img src="<%= usersMap[comment.authorNickname] %>" alt="Profile" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                    <img src="<%= usersMap[comment.authorNickname] %>" alt="Profile" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
                   <% } %>
+                  <a href="/profile/<%= comment.authorId %>" title="<%= comment.authorNickname %> 님의 프로필 보기" style="color: var(--text-primary); font-weight: bold; text-decoration: underline;">
+                    <%= comment.authorNickname %>
+                  </a>
+                <% } else if (comment.authorNickname) { %>
                   <%= comment.authorNickname %>
                 <% } else { %>
                   匿名 (<%= comment.authorIp %>)
@@ -41,10 +45,14 @@
             <div class="comment-header" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
               <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
               <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
-                <% if (reply.authorNickname) { %>
+                <% if (reply.authorNickname && reply.authorId) { %>
                   <% if (locals.usersMap && usersMap[reply.authorNickname]) { %>
-                    <img src="<%= usersMap[reply.authorNickname] %>" alt="Profile" style="width: 14px; height: 14px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                    <img src="<%= usersMap[reply.authorNickname] %>" alt="Profile" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
                   <% } %>
+                  <a href="/profile/<%= reply.authorId %>" title="<%= reply.authorNickname %> 님의 프로필 보기" style="color: var(--text-primary); font-weight: bold; text-decoration: underline;">
+                    <%= reply.authorNickname %>
+                  </a>
+                <% } else if (reply.authorNickname) { %>
                   <%= reply.authorNickname %>
                 <% } else { %>
                   匿名 (<%= reply.authorIp %>)
