@@ -77,6 +77,14 @@
               </div>
             <% }) %>
           </div>
+          
+          <!-- Pagination Controls -->
+          <%- include('partials/pagination', { 
+              currentPage: currentPage, 
+              totalPages: totalPages, 
+              basePath: '/profile/' + userData.id, 
+              filterParam: '' 
+          }) %>
         <% } else { %>
           <p style="color: var(--text-secondary); font-size: 12.5px; font-style: italic; opacity: 0.6; text-align: center; padding: 15px 0;">아직 작성한 글이 없습니다.</p>
         <% } %>

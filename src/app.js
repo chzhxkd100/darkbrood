@@ -828,12 +828,27 @@ app.get('/profile/:id', async (req, res) => {
             .filter(post => post.authorId === userId || (post.authorNickname && post.authorNickname === userData.nickname))
             .sort((a, b) => b.createdAt - a.createdAt);
             
+        // Pagination logic for user's posts
+        const currentPage = parseInt(req.query.page) || 1;
+        const limit = 5; // 5 posts per page
+        const totalPosts = userPosts.length;
+        const totalPages = Math.ceil(totalPosts / limit) || 1;
+        
+        // Safe bounds for currentPage
+        const page = Math.max(1, Math.min(currentPage, totalPages));
+        const startIndex = (page - 1) * limit;
+        const endIndex = page * limit;
+        
+        const paginatedPosts = userPosts.slice(startIndex, endIndex);
+            
         const isOwnProfile = (req.session.user && req.session.user.id === userId) ? true : false;
         
         res.render('profile', { 
             userData: { id: userId, ...userData }, 
-            userPosts, 
-            isOwnProfile 
+            userPosts: paginatedPosts, 
+            isOwnProfile,
+            currentPage: page,
+            totalPages
         });
     } catch (err) {
         console.error('Error in GET /profile/:id:', err.stack || err);
