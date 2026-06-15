@@ -121,6 +121,17 @@ if (isProduction) {
                         saveData(data);
                         return true;
                     },
+                    update: async (updateData) => {
+                        const data = getData();
+                        if (!data[collectionName]) data[collectionName] = [];
+                        const index = data[collectionName].findIndex(item => item.id === id);
+                        if (index > -1) {
+                            data[collectionName][index] = { ...data[collectionName][index], ...updateData };
+                            saveData(data);
+                            return true;
+                        }
+                        return false;
+                    },
                     delete: async () => {
                         const data = getData();
                         if (!data[collectionName]) return true;
