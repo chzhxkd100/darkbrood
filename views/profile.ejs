@@ -7,26 +7,50 @@
 
   <div class="glass-borders" style="margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto;">
     <div class="styled-containers aero-borders">
+      <!-- User Info Header -->
       <div style="text-align: center; margin-bottom: 20px;">
-        <% if (userData.profilePictureUrl) { %>
-          <img src="<%= userData.profilePictureUrl %>" alt="Profile Picture" style="width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; box-shadow: 0 0 10px rgba(0,0,0,0.5);" />
-        <% } else { %>
-          <div style="width: 120px; height: 120px; border-radius: 50%; border: 2px dashed #666; display: flex; align-items: center; justify-content: center; margin: 0 auto; color: #666; font-size: 12px;">
-            No Image
-          </div>
-        <% } %>
-        <h2 style="margin-top: 15px; color: #fff;"><%= userData.nickname %></h2>
-        <p style="color: #888; font-size: 12px;">가입일: <%= new Date(userData.createdAt).toLocaleDateString('ko-KR') %></p>
+        <div style="position: relative; width: 120px; height: 120px; margin: 0 auto;">
+          <% if (userData.profilePictureUrl) { %>
+            <img src="<%= userData.profilePictureUrl %>" alt="Profile Picture" style="width: 120px; height: 120px; border-radius: 50%; border: 2px solid var(--accent-color); object-fit: cover; box-shadow: 0 0 15px var(--accent-glow);" />
+          <% } else { %>
+            <div style="width: 120px; height: 120px; border-radius: 50%; border: 2px dashed rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); font-size: 12px; background: rgba(0,0,0,0.2);">
+              No Image
+            </div>
+          <% } %>
+        </div>
+        
+        <h2 style="margin-top: 15px; color: #fff; font-size: 20px; font-weight: bold; letter-spacing: -0.5px;"><%= userData.nickname %></h2>
+        <p style="color: var(--text-secondary); font-size: 11.5px; margin-top: 4px;">가입일: <%= new Date(userData.createdAt).toLocaleDateString('ko-KR') %></p>
+        
+        <!-- Bio Display -->
+        <div style="margin-top: 15px; max-width: 450px; margin-left: auto; margin-right: auto;">
+          <% if (userData.bio) { %>
+            <p style="color: var(--text-primary); font-size: 13.5px; font-style: italic; background: rgba(0, 0, 0, 0.4); padding: 12px 16px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.05); line-height: 1.5; white-space: pre-line;"><%= userData.bio %></p>
+          <% } else { %>
+            <p style="color: var(--text-secondary); font-size: 12.5px; font-style: italic; opacity: 0.6;">"아직 작성된 소개글이 없는 쓸쓸한 영혼입니다."</p>
+          <% } %>
+        </div>
       </div>
 
-      <div style="border-top: 1px dashed rgba(255, 255, 255, 0.2); padding-top: 20px; margin-top: 20px;">
-        <h3 style="margin-bottom: 15px; font-size: 14px;">프로필 사진 변경</h3>
+      <!-- Edit Section -->
+      <div style="border-top: 1px dashed rgba(255, 255, 255, 0.15); padding-top: 20px; margin-top: 25px;">
+        <h3 style="margin-bottom: 15px; font-size: 13.5px; color: var(--accent-color); font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">프로필 수정 (Edit Profile)</h3>
+        
         <form action="/profile/update" method="POST" enctype="multipart/form-data" class="post-form">
-          <div class="form-group">
-            <label for="profilePic">이미지 파일 (최대 5MB)</label>
-            <input type="file" id="profilePic" name="profilePic" accept="image/*" class="file-input" required />
+          
+          <!-- Bio Input -->
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label for="bio" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">자기소개 (Bio)</label>
+            <textarea id="bio" name="bio" rows="3" placeholder="당신의 사상이나 고독의 깊이를 적어주세요..." style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 10px; font-size: 13px; font-family: inherit; outline: none; resize: vertical; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-color)'" onblur="this.style.borderColor='rgba(255, 255, 255, 0.1)'"><%= userData.bio || '' %></textarea>
           </div>
-          <button type="submit" class="submit-btn" style="width: 100%;">사진 업데이트</button>
+          
+          <!-- Image Input -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label for="profilePic" style="display: block; margin-bottom: 6px; font-size: 12px; color: var(--text-secondary);">프로필 사진 변경 (최대 5MB, 이미지 파일만 가능)</label>
+            <input type="file" id="profilePic" name="profilePic" accept="image/*" class="file-input" style="width: 100%; box-sizing: border-box; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px; padding: 6px 10px; font-size: 12px; color: var(--text-secondary);" />
+          </div>
+          
+          <button type="submit" class="submit-btn" style="width: 100%; padding: 10px; font-weight: bold; letter-spacing: 0.5px;">변경사항 저장</button>
         </form>
       </div>
     </div>

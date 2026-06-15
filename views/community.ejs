@@ -68,8 +68,11 @@
           <article class="styled-containers aero-borders community-post">
             <!-- Post Info Header -->
             <div class="post-header">
-              <span class="post-author">
+              <span class="post-author" style="display: inline-flex; align-items: center; gap: 6px;">
                 <% if (post.authorNickname) { %>
+                  <% if (locals.usersMap && usersMap[post.authorNickname]) { %>
+                    <img src="<%= usersMap[post.authorNickname] %>" alt="Profile" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                  <% } %>
                   <a href="/community?author=<%= encodeURIComponent(post.authorNickname) %>" title="<%= post.authorNickname %> 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline;">
                     <%= post.authorNickname %>
                   </a>

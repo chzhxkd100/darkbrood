@@ -12,8 +12,11 @@
         <div class="comment-item" id="comment-<%= comment.id %>">
           <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
             <div>
-              <span class="comment-author">
+              <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
                 <% if (comment.authorNickname) { %>
+                  <% if (locals.usersMap && usersMap[comment.authorNickname]) { %>
+                    <img src="<%= usersMap[comment.authorNickname] %>" alt="Profile" style="width: 16px; height: 16px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                  <% } %>
                   <%= comment.authorNickname %>
                 <% } else { %>
                   匿名 (<%= comment.authorIp %>)
@@ -37,8 +40,11 @@
           <div class="comment-item reply-item" id="comment-<%= reply.id %>" style="margin-left: 20px; border-left: 2px dashed var(--accent-glow); background: rgba(255, 255, 255, 0.01); padding: 6px 10px; margin-top: 4px; border-radius: 0 4px 4px 0;">
             <div class="comment-header" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
               <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
-              <span class="comment-author">
+              <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
                 <% if (reply.authorNickname) { %>
+                  <% if (locals.usersMap && usersMap[reply.authorNickname]) { %>
+                    <img src="<%= usersMap[reply.authorNickname] %>" alt="Profile" style="width: 14px; height: 14px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                  <% } %>
                   <%= reply.authorNickname %>
                 <% } else { %>
                   匿名 (<%= reply.authorIp %>)

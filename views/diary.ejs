@@ -78,11 +78,15 @@
             <div class="post-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
               <span class="post-title"><%= post.title %></span>
               <div style="display: flex; gap: 10px; font-size: 12px; color: var(--text-secondary);">
-                <span>작성자: 
-                  <a href="/diary?author=<%= encodeURIComponent(post.authorNickname || '운영자') %>" 
-                     title="<%= post.authorNickname || '운영자' %> 님의 글만 보기" 
+                <span style="display: inline-flex; align-items: center; gap: 4px;">작성자: 
+                  <% const authorName = post.authorNickname || '운영자'; %>
+                  <% if (locals.usersMap && usersMap[authorName]) { %>
+                    <img src="<%= usersMap[authorName] %>" alt="Profile" style="width: 18px; height: 18px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                  <% } %>
+                  <a href="/diary?author=<%= encodeURIComponent(authorName) %>" 
+                     title="<%= authorName %> 님의 글만 보기" 
                      style="color: var(--accent-color); font-weight: bold; text-decoration: underline;">
-                    <%= post.authorNickname || '운영자' %>
+                    <%= authorName %>
                   </a>
                 </span>
                 <span>|</span>

@@ -3,7 +3,7 @@ const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const db = require('./db');
-const { upload, fileUpload, getImageUrl } = require('./storage');
+const { upload, getImageUrl } = require('./storage');
 
 // Helper to hash password using SHA-256
 function hashPassword(password) {
@@ -89,11 +89,25 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Pass session variables to EJS templates globally & disable CDN caching for dynamic routes
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
     res.locals.isAdmin = req.session.isAdmin || false;
     res.locals.user = req.session.user || null;
     res.locals.path = req.path;
     res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
+    
+    try {
+        const usersSnap = await db.collection('users').get();
+        const usersMap = {};
+        usersSnap.docs.forEach(doc => {
+            const data = doc.data();
+            usersMap[data.nickname] = data.profilePictureUrl || null;
+        });
+        res.locals.usersMap = usersMap;
+    } catch (e) {
+        console.error('Error fetching users map in global middleware:', e);
+        res.locals.usersMap = {};
+    }
+    
     next();
 });
 
@@ -775,11 +789,17 @@ app.post('/profile/update', upload.single('profilePic'), async (req, res) => {
             updateData.profilePictureUrl = imageUrl;
             // Update session so header can show it immediately
             req.session.user.profilePictureUrl = imageUrl;
-            req.saveSession();
+        }
+        
+        const { bio } = req.body;
+        if (typeof bio === 'string') {
+            updateData.bio = bio.trim();
+            req.session.user.bio = bio.trim();
         }
         
         if (Object.keys(updateData).length > 0) {
             await db.collection('users').doc(req.session.user.id).update(updateData);
+            req.saveSession();
         }
         
         res.redirect('/profile');
@@ -789,110 +809,6 @@ app.post('/profile/update', upload.single('profilePic'), async (req, res) => {
     }
 });
 
-// ----------------------------------------------------
-// ARCHIVE (FILE SHARING)
-// ----------------------------------------------------
-app.get('/archive', async (req, res) => {
-    try {
-        const filesSnap = await db.collection('shared_files')
-            .orderBy('createdAt', 'desc')
-            .get();
-        
-        let files = filesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Pagination logic
-        const currentPage = parseInt(req.query.page) || 1;
-        const limit = 10;
-        const totalFiles = files.length;
-        const totalPages = Math.ceil(totalFiles / limit) || 1;
-        
-        const page = Math.max(1, Math.min(currentPage, totalPages));
-        const startIndex = (page - 1) * limit;
-        const endIndex = page * limit;
-        
-        const pagedFiles = files.slice(startIndex, endIndex);
-        
-        res.render('archive', { 
-            files: pagedFiles, 
-            currentPage: page, 
-            totalPages 
-        });
-    } catch (err) {
-        console.error('Error in GET /archive:', err.stack || err);
-        res.status(500).send('Database Error');
-    }
-});
-
-app.post('/archive/upload', fileUpload.single('file'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).send('No file uploaded.');
-    }
-    
-    // Authorization check - decide policy here. Let's allow users to upload.
-    // We could restrict to logged in or admin, but for now allow all.
-    // If we want restriction: if(!req.session.user && !req.session.isAdmin) return res.status(403)...
-    
-    try {
-        const storageUrl = getImageUrl(req, req.file); // Reuse this function to get URL or path
-        const fileData = {
-            originalName: req.file.originalname,
-            storageUrl,
-            size: req.file.size,
-            mimeType: req.file.mimetype,
-            uploaderIp: req.session.anonId || '익명',
-            downloadCount: 0,
-            createdAt: Date.now()
-        };
-
-        if (req.session.user) {
-            fileData.uploaderNickname = req.session.user.nickname;
-        } else if (req.session.isAdmin) {
-            fileData.uploaderNickname = '운영자';
-        }
-
-        await db.collection('shared_files').add(fileData);
-        res.redirect('/archive');
-    } catch (err) {
-        console.error('Error in POST /archive/upload:', err.stack || err);
-        res.status(500).send('Error uploading file');
-    }
-});
-
-app.get('/archive/download/:id', async (req, res) => {
-    try {
-        const fileId = req.params.id;
-        const fileRef = db.collection('shared_files').doc(fileId);
-        const fileDoc = await fileRef.get();
-        
-        if (!fileDoc.exists) {
-            return res.status(404).send('File not found');
-        }
-        
-        const fileData = fileDoc.data();
-        
-        // Increment download count
-        await fileRef.update({
-            downloadCount: (fileData.downloadCount || 0) + 1
-        });
-        
-        // Redirect to the URL. For local, it might be /uploads/filename.
-        // If it's a local file, we could do res.download to force download with originalName, 
-        // but for simplicity and GCS support, we redirect. 
-        // A direct redirect will work for GCS if uniform bucket level access allows it.
-        // If it's local (e.g. /uploads/...), a redirect will just serve the file via express.static.
-        // We can check if it starts with /uploads/ and use res.download to force the name.
-        if (fileData.storageUrl.startsWith('/uploads/')) {
-            const localPath = path.join(__dirname, '..', 'public', fileData.storageUrl);
-            res.download(localPath, fileData.originalName);
-        } else {
-            res.redirect(fileData.storageUrl);
-        }
-        
-    } catch (err) {
-        console.error('Error in GET /archive/download/:id:', err.stack || err);
-        res.status(500).send('Error downloading file');
-    }
-});
 
 // Start Server
 app.listen(PORT, () => {
