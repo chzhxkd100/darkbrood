@@ -92,6 +92,7 @@ app.use(express.json());
 app.use(async (req, res, next) => {
     res.locals.isAdmin = req.session.isAdmin || false;
     res.locals.user = req.session.user || null;
+    res.locals.anonId = req.session.anonId || null;
     res.locals.path = req.path;
     res.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
     
@@ -527,10 +528,10 @@ app.post('/post/:id/delete', async (req, res) => {
         
         if (req.session.isAdmin) {
             isAuthorized = true;
-        } else if (post.type === 'diary' && req.session.user) {
-            if (post.authorId === req.session.user.id || post.authorNickname === req.session.user.nickname) {
-                isAuthorized = true;
-            }
+        } else if (req.session.user && (post.authorId === req.session.user.id || post.authorNickname === req.session.user.nickname)) {
+            isAuthorized = true;
+        } else if (post.type === 'community' && req.session.anonId && post.authorIp === req.session.anonId) {
+            isAuthorized = true;
         }
         
         if (!isAuthorized) {

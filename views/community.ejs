@@ -112,10 +112,22 @@
                 <% } %>
               </span>
               <span class="post-date" data-timestamp="<%= post.createdAt %>"></span>
-              <% if (isAdmin) { %>
+              <% 
+                let canDelete = false;
+                let deleteLabel = "삭제";
+                if (isAdmin) {
+                  canDelete = true;
+                  deleteLabel = "삭제 (운영자)";
+                } else if (user && (post.authorId === user.id || post.authorNickname === user.nickname)) {
+                  canDelete = true;
+                } else if (post.authorIp && locals.anonId && post.authorIp === anonId) {
+                  canDelete = true;
+                }
+              %>
+              <% if (canDelete) { %>
                 <form action="/post/<%= post.id %>/delete" method="POST" style="display:inline; margin-left: 10px;">
                   <input type="hidden" name="redirectType" value="community" />
-                  <button type="submit" class="admin-del-btn" onclick="return confirm('이 익명 글을 영구 삭제하시겠습니까?')">삭제</button>
+                  <button type="submit" class="admin-del-btn" onclick="return confirm('이 글을 영구 삭제하시겠습니까?')"><%= deleteLabel %></button>
                 </form>
               <% } %>
             </div>
