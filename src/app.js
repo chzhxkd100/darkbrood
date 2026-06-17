@@ -2,8 +2,11 @@ require('dotenv').config();
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const db = require('./db');
-const { upload, getImageUrl } = require('./storage');
+const { upload, getImageUrl, useGCS, bucket, uploadFileToGCS } = require('./storage');
+const os = require('os');
 
 // Helper to hash password using SHA-256
 function hashPassword(password) {
@@ -264,6 +267,172 @@ seedPatchNotes();
 // ROUTES
 // ----------------------------------------------------
 
+// Setup chunk storage for local multer (saves chunks to public/uploads/tmp/<uploadId>/<chunkIndex>)
+const localChunkStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        const uploadId = req.query.uploadId;
+        if (!uploadId) {
+            return cb(new Error('Missing uploadId'));
+        }
+        // Sanitize uploadId to prevent directory traversal
+        const safeUploadId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const dir = path.join(__dirname, '..', 'public', 'uploads', 'tmp', safeUploadId);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+        const chunkIndex = req.query.chunkIndex || '0';
+        const safeChunkIndex = chunkIndex.replace(/[^0-9]/g, '');
+        cb(null, safeChunkIndex);
+    }
+});
+const uploadLocalChunk = multer({
+    storage: localChunkStorage,
+    limits: { fileSize: 10 * 1024 * 1024 } // max 10MB per chunk
+});
+const uploadMemoryChunk = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }
+});
+
+// Route to handle individual chunk upload
+app.post('/upload/chunk', (req, res, next) => {
+    if (useGCS) {
+        uploadMemoryChunk.single('chunk')(req, res, next);
+    } else {
+        uploadLocalChunk.single('chunk')(req, res, next);
+    }
+}, async (req, res) => {
+    try {
+        if (useGCS) {
+            const { uploadId, chunkIndex } = req.query;
+            if (!uploadId) {
+                return res.status(400).send('Missing uploadId');
+            }
+            const safeUploadId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '');
+            const safeChunkIndex = (chunkIndex || '0').replace(/[^0-9]/g, '');
+            
+            const tempFilename = `uploads/tmp/${safeUploadId}/${safeChunkIndex}`;
+            const file = bucket.file(tempFilename);
+            await file.save(req.file.buffer);
+        }
+        res.json({ success: true, message: 'Chunk uploaded successfully' });
+    } catch (err) {
+        console.error('Error uploading chunk to GCS:', err);
+        res.status(500).send('Error uploading chunk: ' + err.message);
+    }
+});
+
+// Route to handle merging of uploaded chunks
+app.post('/upload/complete', async (req, res) => {
+    const { uploadId, filename, totalChunks } = req.body;
+    if (!uploadId || !filename || !totalChunks) {
+        return res.status(400).send('Missing uploadId, filename, or totalChunks');
+    }
+
+    try {
+        const safeUploadId = uploadId.replace(/[^a-zA-Z0-9_-]/g, '');
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const finalFilename = uniqueSuffix + path.extname(filename);
+        
+        let imageUrl;
+        if (useGCS) {
+            // Cloud-native merge on GCP Cloud Run
+            const localPath = path.join(os.tmpdir(), finalFilename);
+            const writeStream = fs.createWriteStream(localPath);
+
+            // Fetch each chunk from GCS and write to local temp file
+            for (let i = 0; i < totalChunks; i++) {
+                const chunkGCSPath = `uploads/tmp/${safeUploadId}/${i}`;
+                const chunkFile = bucket.file(chunkGCSPath);
+                
+                const exists = await chunkFile.exists();
+                if (!exists[0]) {
+                    throw new Error(`Chunk ${i} is missing on GCS`);
+                }
+
+                await new Promise((resolve, reject) => {
+                    const readStream = chunkFile.createReadStream();
+                    readStream.pipe(writeStream, { end: false });
+                    readStream.on('end', resolve);
+                    readStream.on('error', reject);
+                });
+            }
+            writeStream.end();
+
+            await new Promise((resolve, reject) => {
+                writeStream.on('finish', resolve);
+                writeStream.on('error', reject);
+            });
+
+            // Upload the merged file to GCS
+            imageUrl = await uploadFileToGCS(localPath, finalFilename);
+
+            // Clean up local merged file
+            if (fs.existsSync(localPath)) {
+                fs.unlinkSync(localPath);
+            }
+
+            // Clean up GCS chunks
+            const [files] = await bucket.getFiles({ prefix: `uploads/tmp/${safeUploadId}/` });
+            await Promise.all(files.map(file => file.delete()));
+
+        } else {
+            // Local merge
+            const tmpDir = path.join(__dirname, '..', 'public', 'uploads', 'tmp', safeUploadId);
+            const finalPath = path.join(__dirname, '..', 'public', 'uploads', finalFilename);
+            
+            // Ensure destination uploads directory exists
+            const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
+            if (!fs.existsSync(uploadDir)) {
+                fs.mkdirSync(uploadDir, { recursive: true });
+            }
+
+            const writeStream = fs.createWriteStream(finalPath);
+            
+            // Pipe each chunk stream sequentially to the write stream
+            for (let i = 0; i < totalChunks; i++) {
+                const chunkPath = path.join(tmpDir, i.toString());
+                if (!fs.existsSync(chunkPath)) {
+                    throw new Error(`Chunk ${i} is missing`);
+                }
+                const chunkStream = fs.createReadStream(chunkPath);
+                await new Promise((resolve, reject) => {
+                    chunkStream.pipe(writeStream, { end: false });
+                    chunkStream.on('end', resolve);
+                    chunkStream.on('error', reject);
+                });
+            }
+            writeStream.end();
+            
+            await new Promise((resolve, reject) => {
+                writeStream.on('finish', resolve);
+                writeStream.on('error', reject);
+            });
+
+            // Clean up chunks
+            for (let i = 0; i < totalChunks; i++) {
+                const chunkPath = path.join(tmpDir, i.toString());
+                if (fs.existsSync(chunkPath)) {
+                    fs.unlinkSync(chunkPath);
+                }
+            }
+            if (fs.existsSync(tmpDir)) {
+                fs.rmdirSync(tmpDir);
+            }
+
+            imageUrl = `/uploads/${finalFilename}`;
+        }
+
+        res.json({ success: true, url: imageUrl });
+    } catch (err) {
+        console.error('Error merging chunks:', err);
+        res.status(500).send('Error merging chunks: ' + err.message);
+    }
+});
+
 // Home (Notice list as dashboard)
 app.get('/', async (req, res) => {
     try {
@@ -487,7 +656,7 @@ app.post('/post/new', upload.single('image'), async (req, res) => {
     }
     
     try {
-        const imageUrl = getImageUrl(req, req.file);
+        const imageUrl = getImageUrl(req, req.file) || req.body.imageUrl || null;
         const postData = {
             type,
             title,
@@ -570,7 +739,7 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
     }
     
     try {
-        const imageUrl = getImageUrl(req, req.file);
+        const imageUrl = getImageUrl(req, req.file) || req.body.imageUrl || null;
         const postData = {
             type: 'community',
             title: title || '무제',

@@ -16,6 +16,7 @@
       <div class="styled-containers aero-borders">
         <h2>익명 글 쓰기 (Post Anonymously)</h2>
         <form action="/community/new" method="POST" enctype="multipart/form-data" class="post-form">
+          <input type="hidden" id="imageUrl" name="imageUrl" />
           <div class="form-group">
             <label for="title">제목 (선택)</label>
             <input type="text" id="title" name="title" placeholder="글 제목..." />
@@ -27,6 +28,16 @@
           <div class="form-group">
             <label for="image">이미지 첨부 (최대 1개)</label>
             <input type="file" id="image" name="image" accept="image/*" class="file-input" />
+            <!-- Upload Progress UI -->
+            <div id="uploadProgressContainer" style="display: none; margin-top: 15px;">
+              <div class="progress-bar-bg" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 3px; position: relative; overflow: hidden; height: 18px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);">
+                <div id="uploadProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #aa0000, #ff3333); border-radius: 4px; transition: width 0.1s linear; box-shadow: 0 0 10px rgba(255, 51, 51, 0.6);"></div>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 12px; color: #ccc;">
+                <span id="uploadProgressText">심연으로 전송 준비 중... (0%)</span>
+                <span id="uploadProgressSpeed">0.00 MB/s</span>
+              </div>
+            </div>
           </div>
           <button type="submit" class="submit-btn">심연에 투척하기</button>
         </form>
@@ -46,6 +57,127 @@
         btn.textContent = '새 글 쓰기';
       }
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.querySelector('.post-form');
+      if (!form) return;
+
+      form.addEventListener('submit', async (e) => {
+        const fileInput = document.getElementById('image');
+        const file = fileInput ? fileInput.files[0] : null;
+
+        // If no file selected, let the form submit normally
+        if (!file) return;
+
+        // Prevent default submission to upload the file first
+        e.preventDefault();
+
+        const submitBtn = form.querySelector('.submit-btn');
+        const progressContainer = document.getElementById('uploadProgressContainer');
+        const progressBar = document.getElementById('uploadProgressBar');
+        const progressText = document.getElementById('uploadProgressText');
+        const progressSpeed = document.getElementById('uploadProgressSpeed');
+        const imageUrlInput = document.getElementById('imageUrl');
+
+        // Disable submit button and set text inputs to readOnly to prevent edits during upload
+        submitBtn.disabled = true;
+        submitBtn.textContent = '업로드 중...';
+        if (fileInput) fileInput.disabled = true;
+        const textInputs = form.querySelectorAll('input[type="text"], textarea');
+        textInputs.forEach(input => input.readOnly = true);
+
+        // Show progress bar
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressBar.style.background = 'linear-gradient(90deg, #aa0000, #ff3333)';
+        progressText.textContent = '심연으로 전송 시작... (0%)';
+        progressSpeed.textContent = '0.00 MB/s';
+
+        const chunkSize = 2 * 1024 * 1024; // 2MB chunk size
+        const totalChunks = Math.ceil(file.size / chunkSize);
+        const uploadId = 'upload_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
+        
+        let totalUploadedBytes = 0;
+        const startTime = Date.now();
+
+        try {
+          for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+            const start = chunkIndex * chunkSize;
+            const end = Math.min(start + chunkSize, file.size);
+            const chunk = file.slice(start, end);
+
+            const formData = new FormData();
+            formData.append('chunk', chunk);
+
+            const response = await fetch(`/upload/chunk?uploadId=${uploadId}&chunkIndex=${chunkIndex}`, {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!response.ok) {
+              throw new Error(`청크 업로드 실패 (${chunkIndex + 1}/${totalChunks})`);
+            }
+
+            totalUploadedBytes += chunk.size;
+            const elapsedSeconds = (Date.now() - startTime) / 1000;
+            const speedMBps = elapsedSeconds > 0 ? (totalUploadedBytes / (1024 * 1024)) / elapsedSeconds : 0;
+            const percentage = Math.round((totalUploadedBytes / file.size) * 100);
+
+            progressBar.style.width = percentage + '%';
+            progressText.textContent = `심연으로 전송 중... (${percentage}%)`;
+            progressSpeed.textContent = `${speedMBps.toFixed(2)} MB/s`;
+          }
+
+          progressText.textContent = '파편들 봉합 중...';
+          const completeResponse = await fetch('/upload/complete', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              uploadId,
+              filename: file.name,
+              totalChunks
+            })
+          });
+
+          if (!completeResponse.ok) {
+            const errText = await completeResponse.text();
+            throw new Error(errText || '파일 병합 실패');
+          }
+
+          const result = await completeResponse.json();
+          if (!result.success || !result.url) {
+            throw new Error('올바른 파일 URL을 받지 못했습니다.');
+          }
+
+          // Set hidden field URL
+          imageUrlInput.value = result.url;
+          progressText.textContent = '업로드 완료!';
+          progressBar.style.background = 'linear-gradient(90deg, #00aa00, #33ff33)';
+
+          // Clear file input so browser doesn't post it again
+          fileInput.disabled = false;
+          fileInput.value = '';
+          fileInput.remove(); // Remove the element from form entirely
+
+          // Submit the form
+          form.submit();
+
+        } catch (err) {
+          console.error(err);
+          progressText.textContent = '업로드 오류 발생';
+          progressBar.style.background = '#ff0000';
+          alert('파일 업로드 중 오류가 발생했습니다: ' + err.message);
+
+          // Re-enable form fields for retry
+          submitBtn.disabled = false;
+          submitBtn.textContent = '심연에 투척하기';
+          if (fileInput) fileInput.disabled = false;
+          textInputs.forEach(input => input.readOnly = false);
+        }
+      });
+    });
   </script>
 
   <!-- Filter notification if active -->
