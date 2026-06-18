@@ -77,24 +77,26 @@
             <div class="comment-text" style="padding-left: 14px; color: var(--text-primary); font-size: 12px;"><%= reply.content %></div>
           </div>
         <% }) %>
-
         <!-- Reply Form (initially hidden) -->
         <div id="reply-form-<%= comment.id %>" class="reply-form-container" style="display: none; margin-left: 20px; margin-top: 6px; margin-bottom: 10px;">
           <form action="/post/<%= post.id %>/comment" method="POST" enctype="multipart/form-data" class="comment-form" style="display: flex; flex-direction: column; gap: 6px;">
             <input type="hidden" name="parentId" value="<%= comment.id %>" />
             <input type="hidden" name="redirectType" value="<%= redirectType %>" />
             
-            <div style="display: flex; gap: 5px; width: 100%;">
-              <input type="text" name="content" placeholder="답글을 남기세요..." class="comment-input" style="flex: 1; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 12px; outline: none;" />
-              <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 11.5px; padding: 5px 10px; cursor: pointer; font-weight: bold; white-space: nowrap;">답글</button>
-            </div>
-
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <label class="comment-file-label" style="font-size: 10px; color: var(--text-secondary); cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                <span>📷 이미지 첨부</span>
-                <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
-              </label>
-              <span class="comment-file-name" style="font-size: 10px; color: var(--accent-color); font-family: monospace; display: none;"></span>
+            <div style="display: flex; gap: 6px; width: 100%;">
+              <!-- Unified Input Box -->
+              <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
+                <input type="text" name="content" placeholder="답글을 남기세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
+                
+                <span class="comment-file-name" style="font-size: 10px; color: var(--accent-color); font-family: monospace; display: none; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; margin-right: 6px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                
+                <label style="font-size: 10px; color: var(--text-secondary); cursor: pointer; padding: 3px 5px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                  <span>이미지 첨부</span>
+                  <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
+                </label>
+              </div>
+              
+              <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 11.5px; padding: 5px 10px; cursor: pointer; font-weight: bold; white-space: nowrap; height: 28px; display: inline-flex; align-items: center; justify-content: center;">답글</button>
             </div>
           </form>
         </div>
@@ -103,38 +105,40 @@
       <p class="no-comments" style="font-size: 12px; color: var(--text-secondary); font-style: italic; text-align: center; margin: 10px 0;">댓글이 없습니다. 첫 번째 메아리를 울려보세요.</p>
     <% } %>
   </div>
-
+ 
   <!-- Normal Comment Form -->
   <form action="/post/<%= post.id %>/comment" method="POST" enctype="multipart/form-data" class="comment-form" style="margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
     <input type="hidden" name="redirectType" value="<%= redirectType %>" />
     
-    <div style="display: flex; gap: 5px; width: 100%;">
-      <input type="text" name="content" placeholder="댓글을 작성해 주세요..." class="comment-input" style="flex: 1; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; color: #fff; padding: 6px 10px; font-size: 12.5px; outline: none;" />
-      <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 12px; padding: 6px 12px; cursor: pointer; font-weight: bold; white-space: nowrap;">댓글</button>
-    </div>
-
-    <div style="display: flex; align-items: center; gap: 8px;">
-      <label class="comment-file-label" style="font-size: 11px; color: var(--text-secondary); cursor: pointer; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 3px; display: inline-flex; align-items: center; gap: 4px; transition: all 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-        <span>📷 이미지 첨부</span>
-        <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
-      </label>
-      <span class="comment-file-name" style="font-size: 11px; color: var(--accent-color); font-family: monospace; display: none;"></span>
+    <div style="display: flex; gap: 6px; width: 100%;">
+      <!-- Unified Input Box -->
+      <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
+        <input type="text" name="content" placeholder="댓글을 작성해 주세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12.5px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
+        
+        <span class="comment-file-name" style="font-size: 11px; color: var(--accent-color); font-family: monospace; display: none; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 3px; margin-right: 8px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+        
+        <label style="font-size: 11px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+          <span>이미지 첨부</span>
+          <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
+        </label>
+      </div>
+      
+      <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 12px; padding: 6px 12px; cursor: pointer; font-weight: bold; white-space: nowrap; height: 32px; display: inline-flex; align-items: center; justify-content: center;">댓글</button>
     </div>
   </form>
 </div>
-
+ 
 <script>
   if (typeof updateCommentFileName === 'undefined') {
     window.updateCommentFileName = function(input) {
-      const container = input.closest('div');
+      const container = input.closest('.comment-input-wrapper');
       const nameSpan = container.querySelector('.comment-file-name');
       if (input.files && input.files.length > 0) {
         nameSpan.textContent = input.files[0].name;
-        nameSpan.style.display = 'inline';
+        nameSpan.style.display = 'inline-block';
       } else {
         nameSpan.textContent = '';
         nameSpan.style.display = 'none';
       }
     };
-  }
 </script>

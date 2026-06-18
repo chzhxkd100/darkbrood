@@ -27,8 +27,10 @@
             <textarea id="content" name="content" required rows="4" placeholder="세상에 대한 증오나 한탄, 아무 낙서나 적으십시오..."></textarea>
           </div>
           <div class="form-group">
-            <label for="image">이미지 첨부 (여러 장 선택 가능)</label>
+            <label for="image">이미지 첨부 (한 장씩 여러 번 혹은 한 번에 선택 가능)</label>
             <input type="file" id="image" name="image" accept="image/*" class="file-input" multiple />
+            <!-- File preview list -->
+            <div id="filePreviewContainer" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
             <!-- Upload Progress UI -->
             <div id="uploadProgressContainer" style="display: none; margin-top: 15px;">
               <div class="progress-bar-bg" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 3px; position: relative; overflow: hidden; height: 18px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);">
@@ -63,12 +65,74 @@
       const form = document.querySelector('.post-form');
       if (!form) return;
 
-      form.addEventListener('submit', async (e) => {
-        const fileInput = document.getElementById('image');
-        const files = fileInput ? Array.from(fileInput.files) : [];
+      const fileInput = document.getElementById('image');
+      const previewContainer = document.getElementById('filePreviewContainer');
+      let selectedFiles = [];
 
+      if (fileInput && previewContainer) {
+        fileInput.addEventListener('change', () => {
+          if (fileInput.files) {
+            for (let i = 0; i < fileInput.files.length; i++) {
+              selectedFiles.push(fileInput.files[i]);
+            }
+            // Clear value to allow selecting the same file again
+            fileInput.value = '';
+            updateFilePreview();
+          }
+        });
+      }
+
+      function updateFilePreview() {
+        if (!previewContainer) return;
+        previewContainer.innerHTML = '';
+        if (selectedFiles.length === 0) {
+          previewContainer.style.display = 'none';
+          return;
+        }
+        previewContainer.style.display = 'flex';
+        previewContainer.style.flexWrap = 'wrap';
+        previewContainer.style.gap = '8px';
+        
+        selectedFiles.forEach((file, index) => {
+          const item = document.createElement('div');
+          item.className = 'preview-file-item';
+          item.style.display = 'inline-flex';
+          item.style.alignItems = 'center';
+          item.style.gap = '6px';
+          item.style.background = 'rgba(255,255,255,0.06)';
+          item.style.border = '1px solid rgba(255,255,255,0.12)';
+          item.style.padding = '4px 10px';
+          item.style.borderRadius = '4px';
+          item.style.fontSize = '12px';
+          item.style.color = '#fff';
+          item.style.backdropFilter = 'blur(4px)';
+          
+          const nameSpan = document.createElement('span');
+          nameSpan.textContent = file.name;
+          
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '✕';
+          removeBtn.style.background = 'transparent';
+          removeBtn.style.border = 'none';
+          removeBtn.style.color = 'var(--accent-color)';
+          removeBtn.style.cursor = 'pointer';
+          removeBtn.style.fontSize = '11px';
+          removeBtn.style.padding = '0 2px';
+          removeBtn.addEventListener('click', () => {
+            selectedFiles.splice(index, 1);
+            updateFilePreview();
+          });
+
+          item.appendChild(nameSpan);
+          item.appendChild(removeBtn);
+          previewContainer.appendChild(item);
+        });
+      }
+
+      form.addEventListener('submit', async (e) => {
         // If no files selected, let the form submit normally
-        if (files.length === 0) return;
+        if (selectedFiles.length === 0) return;
 
         // Prevent default submission to upload the files first
         e.preventDefault();
@@ -159,8 +223,8 @@
 
         try {
           const uploadedUrls = [];
-          for (let i = 0; i < files.length; i++) {
-            const url = await uploadFile(files[i], i, files.length);
+          for (let i = 0; i < selectedFiles.length; i++) {
+            const url = await uploadFile(selectedFiles[i], i, selectedFiles.length);
             uploadedUrls.push(url);
           }
 
@@ -172,9 +236,11 @@
           progressBar.style.background = 'linear-gradient(90deg, #00aa00, #33ff33)';
 
           // Clear file input so browser doesn't post it again
-          fileInput.disabled = false;
-          fileInput.value = '';
-          fileInput.remove(); // Remove the element from form entirely
+          if (fileInput) {
+            fileInput.disabled = false;
+            fileInput.value = '';
+            fileInput.remove(); // Remove the element from form entirely
+          }
 
           // Submit the form
           form.submit();
