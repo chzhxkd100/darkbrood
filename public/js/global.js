@@ -280,6 +280,15 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const parentGroup = collapseBtn.closest('.post-images-group');
             if (parentGroup) {
+                // Clear any expanded thumbnails/containers inside this group
+                parentGroup.querySelectorAll('.expanded').forEach(el => el.classList.remove('expanded'));
+                
+                // Clear expanded state on post body
+                const postBody = parentGroup.closest('.post-body');
+                if (postBody) {
+                    postBody.classList.remove('has-expanded-image');
+                }
+
                 parentGroup.classList.add('collapsed');
                 const postItem = collapseBtn.closest('.community-post, .glass-borders');
                 if (postItem) {
