@@ -263,33 +263,173 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 3. 4chan Style Image Expansion (Inline Toggle) & Multi-Image Unfold/Fold
+    // 3. Carousel Lightbox & Multi-Image Pagination / View All Modal
     // ==========================================================================
+    let currentImages = [];
+    let currentImageIndex = 0;
+
+    window.openLightbox = function(imagesArray, startIndex) {
+        currentImages = imagesArray;
+        currentImageIndex = startIndex;
+        updateLightboxContent();
+        
+        const lightbox = document.getElementById('lightbox-carousel');
+        if (lightbox) lightbox.style.display = 'flex';
+    };
+
+    window.closeLightbox = function() {
+        const lightbox = document.getElementById('lightbox-carousel');
+        if (lightbox) lightbox.style.display = 'none';
+        currentImages = [];
+    };
+
+    window.navigateLightbox = function(dir) {
+        if (currentImages.length <= 1) return;
+        currentImageIndex = (currentImageIndex + dir + currentImages.length) % currentImages.length;
+        updateLightboxContent();
+    };
+
+    function updateLightboxContent() {
+        const imgEl = document.getElementById('lightbox-img');
+        const indexEl = document.getElementById('lightbox-index');
+        const totalEl = document.getElementById('lightbox-total');
+        const prevArrow = document.querySelector('.lightbox-arrow.prev');
+        const nextArrow = document.querySelector('.lightbox-arrow.next');
+
+        if (imgEl && currentImages[currentImageIndex]) {
+            imgEl.src = currentImages[currentImageIndex];
+        }
+        if (indexEl) {
+            indexEl.textContent = (currentImageIndex + 1).toString();
+        }
+        if (totalEl) {
+            totalEl.textContent = currentImages.length.toString();
+        }
+
+        // Hide navigation arrows if only 1 image
+        if (prevArrow && nextArrow) {
+            const displayStyle = currentImages.length > 1 ? 'flex' : 'none';
+            prevArrow.style.display = displayStyle;
+            nextArrow.style.display = displayStyle;
+        }
+    }
+
+    // View All Modal handlers
+    window.openViewAllModal = function(imagesArray) {
+        const modal = document.getElementById('view-all-modal');
+        const grid = modal ? modal.querySelector('.modal-images-grid') : null;
+        if (!modal || !grid) return;
+
+        grid.innerHTML = '';
+        imagesArray.forEach((url, index) => {
+            const container = document.createElement('div');
+            container.className = 'grid-thumbnail-container';
+            container.innerHTML = `<img src="${url}" alt="Thumbnail ${index + 1}" />`;
+            container.onclick = () => {
+                window.openLightbox(imagesArray, index);
+            };
+            grid.appendChild(container);
+        });
+
+        modal.style.display = 'flex';
+    };
+
+    window.closeViewAllModal = function() {
+        const modal = document.getElementById('view-all-modal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    // Keyboard support for Lightbox
+    document.addEventListener('keydown', (e) => {
+        const lightbox = document.getElementById('lightbox-carousel');
+        const viewAllModal = document.getElementById('view-all-modal');
+
+        if (lightbox && lightbox.style.display === 'flex') {
+            if (e.key === 'Escape') {
+                window.closeLightbox();
+            } else if (e.key === 'ArrowRight') {
+                window.navigateLightbox(1);
+            } else if (e.key === 'ArrowLeft') {
+                window.navigateLightbox(-1);
+            }
+        } else if (viewAllModal && viewAllModal.style.display === 'flex') {
+            if (e.key === 'Escape') {
+                window.closeViewAllModal();
+            }
+        }
+    });
+
     document.body.addEventListener('click', (e) => {
-        // 1. Multi-image unfold
-        const group = e.target.closest('.post-images-group.collapsed');
-        if (group && parseInt(group.dataset.totalImages, 10) > 1) {
+        // 1. Multi-image unfold (click on collapsed group or first image inside it)
+        const collapsedGroup = e.target.closest('.post-images-group.collapsed');
+        if (collapsedGroup) {
             e.preventDefault();
-            group.classList.remove('collapsed');
+            collapsedGroup.classList.remove('collapsed');
             return;
         }
 
-        // 2. Multi-image fold back
+        // 2. Show More images click
+        const showMoreBtn = e.target.closest('.show-more-images-btn');
+        if (showMoreBtn) {
+            e.preventDefault();
+            const group = showMoreBtn.closest('.post-images-group');
+            if (group) {
+                const total = parseInt(group.dataset.totalImages, 10);
+                let visible = parseInt(showMoreBtn.dataset.visibleCount, 10) || 5;
+                visible += 5;
+                showMoreBtn.dataset.visibleCount = visible;
+
+                // Show containers up to visible count
+                group.querySelectorAll('.post-image-container').forEach(container => {
+                    const idx = parseInt(container.dataset.index, 10);
+                    if (idx < visible) {
+                        container.style.setProperty('display', 'block', 'important');
+                    }
+                });
+
+                if (visible >= total) {
+                    showMoreBtn.style.display = 'none';
+                }
+            }
+            return;
+        }
+
+        // 3. View All images click
+        const viewAllBtn = e.target.closest('.view-all-images-btn');
+        if (viewAllBtn) {
+            e.preventDefault();
+            const group = viewAllBtn.closest('.post-images-group');
+            if (group) {
+                const urls = Array.from(group.querySelectorAll('.post-image-container a')).map(a => a.href);
+                window.openViewAllModal(urls);
+            }
+            return;
+        }
+
+        // 4. Multi-image fold back
         const collapseBtn = e.target.closest('.collapse-images-btn');
         if (collapseBtn) {
             e.preventDefault();
-            const parentGroup = collapseBtn.closest('.post-images-group');
-            if (parentGroup) {
-                // Clear any expanded thumbnails/containers inside this group
-                parentGroup.querySelectorAll('.expanded').forEach(el => el.classList.remove('expanded'));
+            const group = collapseBtn.closest('.post-images-group');
+            if (group) {
+                group.classList.add('collapsed');
                 
-                // Clear expanded state on post body
-                const postBody = parentGroup.closest('.post-body');
-                if (postBody) {
-                    postBody.classList.remove('has-expanded-image');
+                // Reset visible count and hide images >= 5
+                const showMore = group.querySelector('.show-more-images-btn');
+                if (showMore) {
+                     showMore.dataset.visibleCount = '5';
+                     showMore.style.display = 'inline-flex';
                 }
+                group.querySelectorAll('.post-image-container').forEach(container => {
+                    const idx = parseInt(container.dataset.index, 10);
+                    if (idx >= 5) {
+                        container.style.setProperty('display', 'none', 'important');
+                    } else {
+                        // clear inline display property so collapsed rules apply
+                        container.style.removeProperty('display');
+                    }
+                });
 
-                parentGroup.classList.add('collapsed');
                 const postItem = collapseBtn.closest('.community-post, .glass-borders');
                 if (postItem) {
                     postItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -298,22 +438,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // 5. Lightbox trigger (click on unfolded image or comment image)
         const trigger = e.target.closest('.lightbox-trigger');
         if (trigger) {
             e.preventDefault();
-            const img = trigger.querySelector('.post-thumbnail, .comment-thumbnail');
-            const container = trigger.closest('.post-image-container, .comment-image-container');
-            const body = trigger.closest('.post-body, .comment-item');
-            
-            if (img) {
-                img.classList.toggle('expanded');
+            const postGroup = trigger.closest('.post-images-group');
+            const viewAllGrid = trigger.closest('.modal-images-grid');
+
+            if (postGroup) {
+                const urls = Array.from(postGroup.querySelectorAll('.post-image-container a')).map(a => a.href);
+                const index = parseInt(trigger.dataset.index, 10) || 0;
+                window.openLightbox(urls, index);
+            } else if (viewAllGrid) {
+                // Handled in openViewAllModal directly
+            } else {
+                // Comment thumbnail or single post image
+                const url = trigger.href;
+                window.openLightbox([url], 0);
             }
-            if (container) {
-                container.classList.toggle('expanded');
-            }
-            if (body) {
-                body.classList.toggle('has-expanded-image');
-            }
+            return;
         }
     });
 });

@@ -395,17 +395,16 @@
               <% if (post.imageUrls && post.imageUrls.length > 1) { %>
                 <div class="post-images-group collapsed" data-total-images="<%= post.imageUrls.length %>">
                   <% post.imageUrls.forEach((url, idx) => { %>
-                    <div class="post-image-container <%= idx > 0 ? 'additional-image' : 'first-image' %>">
-                      <a href="<%= url %>" class="lightbox-trigger" title="클릭하여 확대">
+                    <div class="post-image-container <%= idx > 0 ? 'additional-image' : 'first-image' %>" data-index="<%= idx %>" style="<%= idx >= 5 ? 'display: none !important;' : '' %>">
+                      <a href="<%= url %>" class="lightbox-trigger" data-index="<%= idx %>" title="클릭하여 확대">
                         <img src="<%= url %>" alt="첨부 이미지" class="post-thumbnail" />
-                        <% if (idx === 0) { %>
-                          <div class="images-overlay">
-                            <span>+<%= post.imageUrls.length - 1 %></span>
-                          </div>
-                        <% } %>
                       </a>
                     </div>
                   <% }) %>
+                  <% if (post.imageUrls.length > 5) { %>
+                    <button type="button" class="show-more-images-btn" data-visible-count="5">더보기</button>
+                    <button type="button" class="view-all-images-btn">전체보기</button>
+                  <% } %>
                   <button type="button" class="collapse-images-btn" title="이미지 접기">접기 ↩</button>
                 </div>
               <% } else if (post.imageUrls && post.imageUrls.length === 1) { %>
@@ -449,5 +448,34 @@
                    (locals.searchQuery ? '&searchQuery=' + encodeURIComponent(searchQuery) + '&searchType=' + encodeURIComponent(searchType) : '')
   }) %>
 </section>
+
+<!-- Custom Premium Modals -->
+<div id="view-all-modal" class="custom-modal" style="display: none;">
+  <div class="modal-overlay" onclick="closeViewAllModal()"></div>
+  <div class="modal-wrapper styled-containers-layer-2 aero-borders">
+    <div class="modal-header">
+      <h3 class="modal-title">전체 이미지 보기</h3>
+      <button class="modal-close-btn" onclick="closeViewAllModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-images-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox-carousel" class="custom-modal lightbox-modal" style="display: none;">
+  <div class="modal-overlay" onclick="closeLightbox()"></div>
+  <div class="lightbox-wrapper">
+    <button class="lightbox-close-btn" onclick="closeLightbox()">&times;</button>
+    <button class="lightbox-arrow prev" onclick="navigateLightbox(-1)">&#10094;</button>
+    <div class="lightbox-media-container">
+      <img id="lightbox-img" src="" alt="확대 이미지" />
+    </div>
+    <button class="lightbox-arrow next" onclick="navigateLightbox(1)">&#10095;</button>
+    <div class="lightbox-caption">
+      <span id="lightbox-index">1</span> / <span id="lightbox-total">1</span>
+    </div>
+  </div>
+</div>
 
 <%- include('footer') %>
