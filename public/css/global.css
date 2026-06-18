@@ -1414,3 +1414,14 @@ aside {
     }
 }
 
+
+.lightbox-trigger {
+    display: inline-block;
+    max-width: fit-content;
+    width: fit-content;
+}
+
+.comment-image-container {
+    width: fit-content;
+    max-width: 100%;
+}

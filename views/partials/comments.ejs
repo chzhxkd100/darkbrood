@@ -88,7 +88,11 @@
               <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
                 <input type="text" name="content" placeholder="답글을 남기세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
                 
-                <span class="comment-file-name" style="font-size: 10px; color: var(--accent-color); font-family: monospace; display: none; background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 3px; margin-right: 6px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+                <!-- Comment Image Preview Thumbnail -->
+                <div class="comment-preview-container" style="display: none; align-items: center; margin-right: 8px; position: relative;">
+                  <img class="comment-preview-img" src="" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);" />
+                  <button type="button" class="comment-preview-remove" style="position: absolute; top: -5px; right: -5px; background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; color: var(--accent-color); cursor: pointer; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onclick="clearCommentImage(this)">✕</button>
+                </div>
                 
                 <label style="font-size: 10px; color: var(--text-secondary); cursor: pointer; padding: 3px 5px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
                   <span>이미지 첨부</span>
@@ -115,7 +119,11 @@
       <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
         <input type="text" name="content" placeholder="댓글을 작성해 주세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12.5px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
         
-        <span class="comment-file-name" style="font-size: 11px; color: var(--accent-color); font-family: monospace; display: none; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 3px; margin-right: 8px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
+        <!-- Comment Image Preview Thumbnail -->
+        <div class="comment-preview-container" style="display: none; align-items: center; margin-right: 8px; position: relative;">
+          <img class="comment-preview-img" src="" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);" />
+          <button type="button" class="comment-preview-remove" style="position: absolute; top: -5px; right: -5px; background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; color: var(--accent-color); cursor: pointer; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onclick="clearCommentImage(this)">✕</button>
+        </div>
         
         <label style="font-size: 11px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
           <span>이미지 첨부</span>
@@ -131,14 +139,41 @@
 <script>
   if (typeof updateCommentFileName === 'undefined') {
     window.updateCommentFileName = function(input) {
-      const container = input.closest('.comment-input-wrapper');
-      const nameSpan = container.querySelector('.comment-file-name');
+      const wrapper = input.closest('.comment-input-wrapper');
+      const previewContainer = wrapper.querySelector('.comment-preview-container');
+      const previewImg = wrapper.querySelector('.comment-preview-img');
+      
       if (input.files && input.files.length > 0) {
-        nameSpan.textContent = input.files[0].name;
-        nameSpan.style.display = 'inline-block';
+        if (previewImg.src && previewImg.src.startsWith('blob:')) {
+          URL.revokeObjectURL(previewImg.src);
+        }
+        previewImg.src = URL.createObjectURL(input.files[0]);
+        previewContainer.style.display = 'inline-flex';
       } else {
-        nameSpan.textContent = '';
-        nameSpan.style.display = 'none';
+        if (previewImg.src && previewImg.src.startsWith('blob:')) {
+          URL.revokeObjectURL(previewImg.src);
+        }
+        previewImg.src = '';
+        previewContainer.style.display = 'none';
       }
     };
+  }
+
+  if (typeof clearCommentImage === 'undefined') {
+    window.clearCommentImage = function(btn) {
+      const wrapper = btn.closest('.comment-input-wrapper');
+      const fileInput = wrapper.querySelector('input[type="file"]');
+      const previewContainer = wrapper.querySelector('.comment-preview-container');
+      const previewImg = wrapper.querySelector('.comment-preview-img');
+      
+      if (fileInput) fileInput.value = '';
+      if (previewImg && previewImg.src.startsWith('blob:')) {
+        URL.revokeObjectURL(previewImg.src);
+      }
+      if (previewContainer) {
+        previewImg.src = '';
+        previewContainer.style.display = 'none';
+      }
+    };
+  }
 </script>
