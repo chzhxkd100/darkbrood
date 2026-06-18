@@ -1258,3 +1258,154 @@ aside {
     box-shadow: 0 0 4px var(--accent-glow);
 }
 
+/* ==========================================================================
+   Site Footer
+   ========================================================================== */
+.site-footer {
+    margin-top: 40px;
+    padding: 20px 10px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.15);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-shadow: 1px 1px 2px #000;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    align-items: center;
+}
+
+.footer-copyright {
+    font-weight: bold;
+}
+
+.footer-status {
+    font-style: italic;
+    opacity: 0.8;
+}
+
+/* ==========================================================================
+   Post Images Group for Multi-Image uploads
+   ========================================================================== */
+.post-images-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+/* Multi-image group states */
+.post-images-group.collapsed .additional-image {
+    display: none !important;
+}
+
+.post-images-group.collapsed .first-image {
+    position: relative;
+}
+
+/* Overlay style */
+.images-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: none; /* Hidden by default when unfolded */
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 4px;
+    transition: background 0.2s, transform 0.2s;
+    backdrop-filter: blur(2px);
+    pointer-events: none; /* Let click pass through to lightbox trigger */
+}
+
+/* Show only when collapsed */
+.post-images-group.collapsed .images-overlay {
+    display: flex;
+}
+
+/* Hover style on the first image when collapsed */
+.post-images-group.collapsed .first-image:hover .images-overlay {
+    background: rgba(0, 0, 0, 0.4);
+    font-size: 22px;
+}
+
+/* Collapse button styles */
+.collapse-images-btn {
+    display: none; /* Hidden when collapsed */
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    padding: 0 16px;
+    height: 120px; /* matches thumbnail height */
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-weight: bold;
+}
+
+.collapse-images-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
+/* Show button when expanded */
+.post-images-group:not(.collapsed) .collapse-images-btn {
+    display: inline-flex;
+}
+
+/* Comment thumbnail styles */
+.comment-thumbnail {
+    max-width: 80px;
+    max-height: 80px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    object-fit: cover;
+    display: block;
+    transition: all 0.2s;
+    cursor: zoom-in;
+}
+
+.comment-thumbnail:hover {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 6px var(--accent-glow);
+}
+
+.comment-thumbnail.expanded {
+    max-width: 100% !important;
+    max-height: none !important;
+    border-radius: 6px;
+    cursor: zoom-out;
+}
+
+.comment-image-container.expanded {
+    max-width: 100% !important;
+}
+
+@media (max-width: 768px) {
+    .site-footer {
+        padding-bottom: 60px; /* Ensure space for mobile browsers scrolling all the way */
+    }
+    .footer-content {
+        flex-direction: column;
+        gap: 6px;
+        text-align: center;
+    }
+}
+

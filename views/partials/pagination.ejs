@@ -9,10 +9,11 @@
 
     <!-- 앞부분 생략 표시 (...) -->
     <% 
-      let startPage = Math.max(1, currentPage - 4);
-      let endPage = Math.min(totalPages, startPage + 8);
-      if (endPage - startPage < 8) {
-        startPage = Math.max(1, endPage - 8);
+      let maxPagesToShow = 5;
+      let startPage = Math.max(1, currentPage - 2);
+      let endPage = Math.min(totalPages, startPage + (maxPagesToShow - 1));
+      if (endPage - startPage < (maxPagesToShow - 1)) {
+        startPage = Math.max(1, endPage - (maxPagesToShow - 1));
       }
     %>
     <% if (startPage > 1) { %>

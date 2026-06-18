@@ -263,15 +263,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================================================
-    // 3. 4chan Style Image Expansion (Inline Toggle)
+    // 3. 4chan Style Image Expansion (Inline Toggle) & Multi-Image Unfold/Fold
     // ==========================================================================
     document.body.addEventListener('click', (e) => {
+        // 1. Multi-image unfold
+        const group = e.target.closest('.post-images-group.collapsed');
+        if (group && parseInt(group.dataset.totalImages, 10) > 1) {
+            e.preventDefault();
+            group.classList.remove('collapsed');
+            return;
+        }
+
+        // 2. Multi-image fold back
+        const collapseBtn = e.target.closest('.collapse-images-btn');
+        if (collapseBtn) {
+            e.preventDefault();
+            const parentGroup = collapseBtn.closest('.post-images-group');
+            if (parentGroup) {
+                parentGroup.classList.add('collapsed');
+                const postItem = collapseBtn.closest('.community-post, .glass-borders');
+                if (postItem) {
+                    postItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            }
+            return;
+        }
+
         const trigger = e.target.closest('.lightbox-trigger');
         if (trigger) {
             e.preventDefault();
-            const img = trigger.querySelector('.post-thumbnail');
-            const container = trigger.closest('.post-image-container');
-            const body = trigger.closest('.post-body');
+            const img = trigger.querySelector('.post-thumbnail, .comment-thumbnail');
+            const container = trigger.closest('.post-image-container, .comment-image-container');
+            const body = trigger.closest('.post-body, .comment-item');
             
             if (img) {
                 img.classList.toggle('expanded');

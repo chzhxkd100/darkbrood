@@ -17,6 +17,7 @@
         <h2>익명 글 쓰기 (Post Anonymously)</h2>
         <form action="/community/new" method="POST" enctype="multipart/form-data" class="post-form">
           <input type="hidden" id="imageUrl" name="imageUrl" />
+          <input type="hidden" id="imageUrls" name="imageUrls" />
           <div class="form-group">
             <label for="title">제목 (선택)</label>
             <input type="text" id="title" name="title" placeholder="글 제목..." />
@@ -26,8 +27,8 @@
             <textarea id="content" name="content" required rows="4" placeholder="세상에 대한 증오나 한탄, 아무 낙서나 적으십시오..."></textarea>
           </div>
           <div class="form-group">
-            <label for="image">이미지 첨부 (최대 1개)</label>
-            <input type="file" id="image" name="image" accept="image/*" class="file-input" />
+            <label for="image">이미지 첨부 (여러 장 선택 가능)</label>
+            <input type="file" id="image" name="image" accept="image/*" class="file-input" multiple />
             <!-- Upload Progress UI -->
             <div id="uploadProgressContainer" style="display: none; margin-top: 15px;">
               <div class="progress-bar-bg" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 6px; padding: 3px; position: relative; overflow: hidden; height: 18px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);">
@@ -64,12 +65,12 @@
 
       form.addEventListener('submit', async (e) => {
         const fileInput = document.getElementById('image');
-        const file = fileInput ? fileInput.files[0] : null;
+        const files = fileInput ? Array.from(fileInput.files) : [];
 
-        // If no file selected, let the form submit normally
-        if (!file) return;
+        // If no files selected, let the form submit normally
+        if (files.length === 0) return;
 
-        // Prevent default submission to upload the file first
+        // Prevent default submission to upload the files first
         e.preventDefault();
 
         const submitBtn = form.querySelector('.submit-btn');
@@ -78,6 +79,7 @@
         const progressText = document.getElementById('uploadProgressText');
         const progressSpeed = document.getElementById('uploadProgressSpeed');
         const imageUrlInput = document.getElementById('imageUrl');
+        const imageUrlsInput = document.getElementById('imageUrls');
 
         // Disable submit button and set text inputs to readOnly to prevent edits during upload
         submitBtn.disabled = true;
@@ -88,19 +90,20 @@
 
         // Show progress bar
         progressContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        progressBar.style.background = 'linear-gradient(90deg, #aa0000, #ff3333)';
-        progressText.textContent = '심연으로 전송 시작... (0%)';
-        progressSpeed.textContent = '0.00 MB/s';
 
-        const chunkSize = 2 * 1024 * 1024; // 2MB chunk size
-        const totalChunks = Math.ceil(file.size / chunkSize);
-        const uploadId = 'upload_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15);
-        
-        let totalUploadedBytes = 0;
-        const startTime = Date.now();
+        const uploadFile = async (file, index, totalFiles) => {
+          const chunkSize = 2 * 1024 * 1024; // 2MB chunk size
+          const totalChunks = Math.ceil(file.size / chunkSize);
+          const uploadId = 'upload_' + Date.now() + '_' + Math.random().toString(36).substring(2, 15) + '_' + index;
+          
+          let totalUploadedBytes = 0;
+          const startTime = Date.now();
 
-        try {
+          progressBar.style.width = '0%';
+          progressBar.style.background = 'linear-gradient(90deg, #aa0000, #ff3333)';
+          progressText.textContent = `이미지 [${index + 1}/${totalFiles}] 전송 시작... (0%)`;
+          progressSpeed.textContent = '0.00 MB/s';
+
           for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
             const start = chunkIndex * chunkSize;
             const end = Math.min(start + chunkSize, file.size);
@@ -124,11 +127,11 @@
             const percentage = Math.round((totalUploadedBytes / file.size) * 100);
 
             progressBar.style.width = percentage + '%';
-            progressText.textContent = `심연으로 전송 중... (${percentage}%)`;
+            progressText.textContent = `이미지 [${index + 1}/${totalFiles}] 전송 중... (${percentage}%)`;
             progressSpeed.textContent = `${speedMBps.toFixed(2)} MB/s`;
           }
 
-          progressText.textContent = '파편들 봉합 중...';
+          progressText.textContent = `이미지 [${index + 1}/${totalFiles}] 조립 중...`;
           const completeResponse = await fetch('/upload/complete', {
             method: 'POST',
             headers: {
@@ -151,9 +154,21 @@
             throw new Error('올바른 파일 URL을 받지 못했습니다.');
           }
 
-          // Set hidden field URL
-          imageUrlInput.value = result.url;
-          progressText.textContent = '업로드 완료!';
+          return result.url;
+        };
+
+        try {
+          const uploadedUrls = [];
+          for (let i = 0; i < files.length; i++) {
+            const url = await uploadFile(files[i], i, files.length);
+            uploadedUrls.push(url);
+          }
+
+          // Set hidden fields
+          if (imageUrlInput) imageUrlInput.value = uploadedUrls[0] || '';
+          if (imageUrlsInput) imageUrlsInput.value = JSON.stringify(uploadedUrls);
+
+          progressText.textContent = '모든 이미지 업로드 완료!';
           progressBar.style.background = 'linear-gradient(90deg, #00aa00, #33ff33)';
 
           // Clear file input so browser doesn't post it again
@@ -271,7 +286,29 @@
  
             <!-- Post Body (Flex wrapper for image and text) -->
             <div class="post-body">
-              <% if (post.imageUrl) { %>
+              <% if (post.imageUrls && post.imageUrls.length > 1) { %>
+                <div class="post-images-group collapsed" data-total-images="<%= post.imageUrls.length %>">
+                  <% post.imageUrls.forEach((url, idx) => { %>
+                    <div class="post-image-container <%= idx > 0 ? 'additional-image' : 'first-image' %>">
+                      <a href="<%= url %>" class="lightbox-trigger" title="클릭하여 확대">
+                        <img src="<%= url %>" alt="첨부 이미지" class="post-thumbnail" />
+                        <% if (idx === 0) { %>
+                          <div class="images-overlay">
+                            <span>+<%= post.imageUrls.length - 1 %></span>
+                          </div>
+                        <% } %>
+                      </a>
+                    </div>
+                  <% }) %>
+                  <button type="button" class="collapse-images-btn" title="이미지 접기">접기 ↩</button>
+                </div>
+              <% } else if (post.imageUrls && post.imageUrls.length === 1) { %>
+                <div class="post-image-container">
+                  <a href="<%= post.imageUrls[0] %>" class="lightbox-trigger" title="클릭하여 확대">
+                    <img src="<%= post.imageUrls[0] %>" alt="첨부 이미지" class="post-thumbnail" />
+                  </a>
+                </div>
+              <% } else if (post.imageUrl) { %>
                 <div class="post-image-container">
                   <a href="<%= post.imageUrl %>" class="lightbox-trigger" title="클릭하여 확대">
                     <img src="<%= post.imageUrl %>" alt="첨부 이미지" class="post-thumbnail" />

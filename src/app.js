@@ -739,12 +739,24 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
     }
     
     try {
-        const imageUrl = getImageUrl(req, req.file) || req.body.imageUrl || null;
+        let imageUrls = [];
+        if (req.body.imageUrls) {
+            try {
+                imageUrls = JSON.parse(req.body.imageUrls);
+            } catch (e) {
+                if (typeof req.body.imageUrls === 'string') {
+                    imageUrls = [req.body.imageUrls];
+                }
+            }
+        }
+
+        const imageUrl = getImageUrl(req, req.file) || req.body.imageUrl || (imageUrls.length > 0 ? imageUrls[0] : null);
         const postData = {
             type: 'community',
             title: title || '무제',
             content,
             imageUrl,
+            imageUrls: imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
             authorIp: req.session.anonId || '익명',
             createdAt: Date.now()
         };
@@ -765,18 +777,20 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
 });
 
 // Unified Add Comment / Reply (Notice, Diary, Community)
-app.post('/post/:id/comment', async (req, res) => {
+app.post('/post/:id/comment', upload.single('commentImage'), async (req, res) => {
     const { content, parentId, redirectType } = req.body;
     const postId = req.params.id;
     
-    if (!content || content.trim() === '') {
+    if ((!content || content.trim() === '') && !req.file) {
         return res.redirect(`/${redirectType || ''}`);
     }
     
     try {
+        const imageUrl = getImageUrl(req, req.file) || null;
         const commentData = {
             postId,
-            content,
+            content: content || '',
+            imageUrl,
             authorIp: req.session.anonId || '익명',
             createdAt: Date.now()
         };
