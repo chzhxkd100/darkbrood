@@ -84,6 +84,15 @@
 
       function updateFilePreview() {
         if (!previewContainer) return;
+        
+        // Revoke old object URLs to avoid memory leaks
+        const oldImgs = previewContainer.querySelectorAll('img');
+        oldImgs.forEach(img => {
+          if (img.src && img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+          }
+        });
+
         previewContainer.innerHTML = '';
         if (selectedFiles.length === 0) {
           previewContainer.style.display = 'none';
@@ -91,40 +100,68 @@
         }
         previewContainer.style.display = 'flex';
         previewContainer.style.flexWrap = 'wrap';
-        previewContainer.style.gap = '8px';
+        previewContainer.style.gap = '12px';
+        previewContainer.style.marginTop = '12px';
         
         selectedFiles.forEach((file, index) => {
           const item = document.createElement('div');
-          item.className = 'preview-file-item';
-          item.style.display = 'inline-flex';
-          item.style.alignItems = 'center';
-          item.style.gap = '6px';
-          item.style.background = 'rgba(255,255,255,0.06)';
-          item.style.border = '1px solid rgba(255,255,255,0.12)';
-          item.style.padding = '4px 10px';
-          item.style.borderRadius = '4px';
-          item.style.fontSize = '12px';
-          item.style.color = '#fff';
-          item.style.backdropFilter = 'blur(4px)';
+          item.style.position = 'relative';
+          item.style.width = '64px';
+          item.style.height = '64px';
           
-          const nameSpan = document.createElement('span');
-          nameSpan.textContent = file.name;
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          img.style.borderRadius = '6px';
+          img.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+          img.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
           
+          // Tooltip showing file name
+          item.title = file.name;
+
           const removeBtn = document.createElement('button');
           removeBtn.type = 'button';
           removeBtn.textContent = '✕';
-          removeBtn.style.background = 'transparent';
-          removeBtn.style.border = 'none';
+          removeBtn.style.position = 'absolute';
+          removeBtn.style.top = '-6px';
+          removeBtn.style.right = '-6px';
+          removeBtn.style.background = 'rgba(10, 10, 10, 0.85)';
+          removeBtn.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+          removeBtn.style.borderRadius = '50%';
           removeBtn.style.color = 'var(--accent-color)';
           removeBtn.style.cursor = 'pointer';
-          removeBtn.style.fontSize = '11px';
-          removeBtn.style.padding = '0 2px';
+          removeBtn.style.width = '18px';
+          removeBtn.style.height = '18px';
+          removeBtn.style.display = 'flex';
+          removeBtn.style.alignItems = 'center';
+          removeBtn.style.justifyContent = 'center';
+          removeBtn.style.fontSize = '9px';
+          removeBtn.style.fontWeight = 'bold';
+          removeBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+          removeBtn.style.transition = 'all 0.2s';
+          removeBtn.style.padding = '0';
+          
+          removeBtn.onmouseover = () => {
+            removeBtn.style.borderColor = 'var(--accent-color)';
+            removeBtn.style.boxShadow = '0 0 5px var(--accent-glow)';
+          };
+          removeBtn.onmouseout = () => {
+            removeBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            removeBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+          };
+
           removeBtn.addEventListener('click', () => {
+            // Revoke URL before removal
+            if (img.src.startsWith('blob:')) {
+              URL.revokeObjectURL(img.src);
+            }
             selectedFiles.splice(index, 1);
             updateFilePreview();
           });
 
-          item.appendChild(nameSpan);
+          item.appendChild(img);
           item.appendChild(removeBtn);
           previewContainer.appendChild(item);
         });
@@ -242,6 +279,9 @@
             fileInput.remove(); // Remove the element from form entirely
           }
 
+          // Clear files to prevent infinite submission loop
+          selectedFiles = [];
+
           // Submit the form
           form.submit();
 
@@ -351,7 +391,7 @@
             <% } %>
  
             <!-- Post Body (Flex wrapper for image and text) -->
-            <div class="post-body">
+            <div class="post-body <%= (post.imageUrls && post.imageUrls.length > 1) ? 'has-multiple-images' : '' %>">
               <% if (post.imageUrls && post.imageUrls.length > 1) { %>
                 <div class="post-images-group collapsed" data-total-images="<%= post.imageUrls.length %>">
                   <% post.imageUrls.forEach((url, idx) => { %>

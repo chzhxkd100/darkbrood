@@ -788,6 +788,11 @@ aside {
     padding: 8px 0;
 }
 
+.post-body.has-multiple-images {
+    flex-direction: column;
+    align-items: stretch;
+}
+
 .post-image-container {
     flex: 0 0 120px;
 }
