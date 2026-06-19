@@ -414,6 +414,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (group) {
                 group.classList.add('collapsed');
                 
+                // Clear any expanded thumbnails/containers inside this group
+                group.querySelectorAll('.expanded').forEach(el => el.classList.remove('expanded'));
+                
+                // Clear expanded state on post body
+                const postBody = group.closest('.post-body');
+                if (postBody) {
+                    postBody.classList.remove('has-expanded-image');
+                }
+
                 // Reset visible count and hide images >= 5
                 const showMore = group.querySelector('.show-more-images-btn');
                 if (showMore) {
@@ -438,23 +447,32 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // 5. Lightbox trigger (click on unfolded image or comment image)
+        // 5. Image Click Handler (direct feed image click expands inline; grid modal opens lightbox)
         const trigger = e.target.closest('.lightbox-trigger');
         if (trigger) {
             e.preventDefault();
-            const postGroup = trigger.closest('.post-images-group');
             const viewAllGrid = trigger.closest('.modal-images-grid');
 
-            if (postGroup) {
-                const urls = Array.from(postGroup.querySelectorAll('.post-image-container a')).map(a => a.href);
+            if (viewAllGrid) {
+                // Clicking a thumbnail inside the View All Grid Modal opens the Lightbox Carousel
+                const urls = Array.from(viewAllGrid.querySelectorAll('.grid-thumbnail-container img')).map(img => img.src);
                 const index = parseInt(trigger.dataset.index, 10) || 0;
                 window.openLightbox(urls, index);
-            } else if (viewAllGrid) {
-                // Handled in openViewAllModal directly
             } else {
-                // Comment thumbnail or single post image
-                const url = trigger.href;
-                window.openLightbox([url], 0);
+                // Direct clicks in the feed (single image, unfolded group, or comment image) toggle inline expansion (4chan style)
+                const img = trigger.querySelector('.post-thumbnail, .comment-thumbnail');
+                const container = trigger.closest('.post-image-container, .comment-image-container');
+                const body = trigger.closest('.post-body, .comment-item');
+                
+                if (img) {
+                    img.classList.toggle('expanded');
+                }
+                if (container) {
+                    container.classList.toggle('expanded');
+                }
+                if (body) {
+                    body.classList.toggle('has-expanded-image');
+                }
             }
             return;
         }

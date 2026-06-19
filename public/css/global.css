@@ -1351,6 +1351,12 @@ aside {
     pointer-events: none;
 }
 
+/* If exactly 2 images, hide the backmost card back to represent exactly 2 cards in total */
+.post-images-group.collapsed[data-total-images="2"] .first-image::before,
+.post-images-group.collapsed[data-total-images="2"] .first-image:hover::before {
+    display: none !important;
+}
+
 /* Hover style: cards slide out slightly */
 .post-images-group.collapsed .first-image:hover::after {
     transform: translate(3px, 3px) rotate(1.5deg);

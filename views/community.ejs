@@ -449,33 +449,4 @@
   }) %>
 </section>
 
-<!-- Custom Premium Modals -->
-<div id="view-all-modal" class="custom-modal" style="display: none;">
-  <div class="modal-overlay" onclick="closeViewAllModal()"></div>
-  <div class="modal-wrapper styled-containers-layer-2 aero-borders">
-    <div class="modal-header">
-      <h3 class="modal-title">전체 이미지 보기</h3>
-      <button class="modal-close-btn" onclick="closeViewAllModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-images-grid"></div>
-    </div>
-  </div>
-</div>
-
-<div id="lightbox-carousel" class="custom-modal lightbox-modal" style="display: none;">
-  <div class="modal-overlay" onclick="closeLightbox()"></div>
-  <div class="lightbox-wrapper">
-    <button class="lightbox-close-btn" onclick="closeLightbox()">&times;</button>
-    <button class="lightbox-arrow prev" onclick="navigateLightbox(-1)">&#10094;</button>
-    <div class="lightbox-media-container">
-      <img id="lightbox-img" src="" alt="확대 이미지" />
-    </div>
-    <button class="lightbox-arrow next" onclick="navigateLightbox(1)">&#10095;</button>
-    <div class="lightbox-caption">
-      <span id="lightbox-index">1</span> / <span id="lightbox-total">1</span>
-    </div>
-  </div>
-</div>
-
 <%- include('footer') %>
