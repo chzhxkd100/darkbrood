@@ -820,6 +820,50 @@ app.post('/community/:id/comment', async (req, res) => {
     res.redirect(307, `/post/${req.params.id}/comment`);
 });
 
+// Delete Comment/Reply (Owner or Admin)
+app.post('/comment/:id/delete', async (req, res) => {
+    const commentId = req.params.id;
+    const { redirectType } = req.body;
+    
+    try {
+        const commentDoc = await db.collection('comments').doc(commentId).get();
+        if (!commentDoc.exists) {
+            return res.status(404).send('Comment not found');
+        }
+        
+        const comment = commentDoc.data();
+        let isAuthorized = false;
+        
+        if (req.session.isAdmin) {
+            isAuthorized = true;
+        } else if (req.session.user && comment.authorId === req.session.user.id) {
+            isAuthorized = true;
+        } else if (!comment.authorId && req.session.anonId && comment.authorIp === req.session.anonId) {
+            isAuthorized = true;
+        }
+        
+        if (!isAuthorized) {
+            return res.status(403).send('Forbidden: You are not authorized to delete this comment.');
+        }
+        
+        // Delete the main comment
+        await db.collection('comments').doc(commentId).delete();
+        
+        // Cascade delete child replies
+        const childSnap = await db.collection('comments')
+            .where('parentId', '==', commentId)
+            .get();
+        for (const doc of childSnap.docs) {
+            await db.collection('comments').doc(doc.id).delete();
+        }
+        
+        res.redirect(`/${redirectType || ''}`);
+    } catch (err) {
+        console.error('Error in POST /comment/:id/delete:', err.stack || err);
+        res.status(500).send('Error deleting comment');
+    }
+});
+
 // ----------------------------------------------------
 // REAL-TIME CHAT (SIDEBAR ECHOES)
 // ----------------------------------------------------

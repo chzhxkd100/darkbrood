@@ -29,9 +29,29 @@
               <span class="comment-date" data-timestamp="<%= comment.createdAt %>"></span>
             </div>
             
-            <button type="button" class="reply-toggle-btn" onclick="toggleReplyForm('<%= comment.id %>')" style="background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-secondary); font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
-              답글
-            </button>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button type="button" class="reply-toggle-btn" onclick="toggleReplyForm('<%= comment.id %>')" style="background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-secondary); font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                답글
+              </button>
+              <% 
+                let canDeleteComment = false;
+                if (locals.isAdmin) {
+                    canDeleteComment = true;
+                } else if (locals.user && comment.authorId === locals.user.id) {
+                    canDeleteComment = true;
+                } else if (!comment.authorId && locals.anonId && comment.authorIp === locals.anonId) {
+                    canDeleteComment = true;
+                }
+              %>
+              <% if (canDeleteComment) { %>
+                <form action="/comment/<%= comment.id %>/delete" method="POST" style="display: inline; margin: 0;">
+                  <input type="hidden" name="redirectType" value="<%= redirectType %>" />
+                  <button type="submit" class="comment-delete-btn" onclick="return confirm('이 댓글을 삭제하시겠습니까?')" style="background: transparent; border: 1px solid rgba(220, 53, 69, 0.3); color: #ff4d4d; font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                    삭제
+                  </button>
+                </form>
+              <% } %>
+            </div>
           </div>
           <% if (comment.imageUrl) { %>
             <div class="comment-image-container" style="margin-top: 6px; margin-bottom: 6px;">
@@ -49,23 +69,43 @@
           replies.forEach(reply => {
         %>
           <div class="comment-item reply-item" id="comment-<%= reply.id %>" style="margin-left: 20px; border-left: 2px dashed var(--accent-glow); background: rgba(255, 255, 255, 0.01); padding: 6px 10px; margin-top: 4px; border-radius: 0 4px 4px 0;">
-            <div class="comment-header" style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-              <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
-              <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
-                <% if (reply.authorNickname && reply.authorId) { %>
-                  <% if (locals.usersMap && usersMap[reply.authorNickname]) { %>
-                    <img src="<%= usersMap[reply.authorNickname] %>" alt="Profile" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
-                  <% } %>
-                  <a href="/profile/<%= reply.authorId %>" title="<%= reply.authorNickname %> 님의 프로필 보기" style="color: var(--text-primary); font-weight: bold; text-decoration: underline;">
+            <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; width: 100%;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
+                <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
+                  <% if (reply.authorNickname && reply.authorId) { %>
+                    <% if (locals.usersMap && usersMap[reply.authorNickname]) { %>
+                      <img src="<%= usersMap[reply.authorNickname] %>" alt="Profile" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />
+                    <% } %>
+                    <a href="/profile/<%= reply.authorId %>" title="<%= reply.authorNickname %> 님의 프로필 보기" style="color: var(--text-primary); font-weight: bold; text-decoration: underline;">
+                      <%= reply.authorNickname %>
+                    </a>
+                  <% } else if (reply.authorNickname) { %>
                     <%= reply.authorNickname %>
-                  </a>
-                <% } else if (reply.authorNickname) { %>
-                  <%= reply.authorNickname %>
-                <% } else { %>
-                  匿名 (<%= reply.authorIp %>)
-                <% } %>
-              </span>
-              <span class="comment-date" data-timestamp="<%= reply.createdAt %>"></span>
+                  <% } else { %>
+                    匿名 (<%= reply.authorIp %>)
+                  <% } %>
+                </span>
+                <span class="comment-date" data-timestamp="<%= reply.createdAt %>"></span>
+              </div>
+              <% 
+                let canDeleteReply = false;
+                if (locals.isAdmin) {
+                    canDeleteReply = true;
+                } else if (locals.user && reply.authorId === locals.user.id) {
+                    canDeleteReply = true;
+                } else if (!reply.authorId && locals.anonId && reply.authorIp === locals.anonId) {
+                    canDeleteReply = true;
+                }
+              %>
+              <% if (canDeleteReply) { %>
+                <form action="/comment/<%= reply.id %>/delete" method="POST" style="display: inline; margin: 0;">
+                  <input type="hidden" name="redirectType" value="<%= redirectType %>" />
+                  <button type="submit" class="comment-delete-btn" onclick="return confirm('이 답글을 삭제하시겠습니까?')" style="background: transparent; border: 1px solid rgba(220, 53, 69, 0.3); color: #ff4d4d; font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                    삭제
+                  </button>
+                </form>
+              <% } %>
             </div>
             <% if (reply.imageUrl) { %>
               <div class="comment-image-container" style="margin-top: 4px; margin-bottom: 4px; padding-left: 14px;">
