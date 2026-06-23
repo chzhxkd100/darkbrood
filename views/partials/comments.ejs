@@ -216,4 +216,37 @@
       }
     };
   }
+
+  // Register document-wide paste listener for comments/replies inputs
+  if (typeof commentPasteHandlerRegistered === 'undefined') {
+    window.commentPasteHandlerRegistered = true;
+    document.addEventListener('paste', function(e) {
+      const target = e.target;
+      if (!target || target.tagName !== 'INPUT' || target.name !== 'content') return;
+      
+      const wrapper = target.closest('.comment-input-wrapper');
+      if (!wrapper) return;
+      
+      const files = e.clipboardData?.files || e.originalEvent?.clipboardData?.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('image/')) {
+          e.preventDefault(); // Stop default pasting of text/filename
+          const fileInput = wrapper.querySelector('input[type="file"][name="commentImage"]');
+          if (fileInput) {
+            const extension = file.type.split('/')[1] || 'png';
+            const newFile = new File([file], `pasted-comment-${Date.now()}.${extension}`, { type: file.type });
+            
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(newFile);
+            fileInput.files = dataTransfer.files;
+            
+            if (typeof updateCommentFileName === 'function') {
+              updateCommentFileName(fileInput);
+            }
+          }
+        }
+      }
+    });
+  }
 </script>

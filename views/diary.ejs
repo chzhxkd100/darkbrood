@@ -29,6 +29,8 @@
             <div class="form-group">
               <label for="image">이미지 첨부 (최대 1개)</label>
               <input type="file" id="image" name="image" accept="image/*" class="file-input" />
+              <!-- File preview container -->
+              <div id="filePreviewContainer" style="display: none; flex-wrap: wrap; gap: 8px; margin-top: 10px;"></div>
             </div>
             <button type="submit" class="submit-btn">기록 각인하기</button>
           </form>
@@ -48,6 +50,116 @@
           btn.textContent = '새 사념 기록';
         }
       }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const fileInput = document.getElementById('image');
+        const previewContainer = document.getElementById('filePreviewContainer');
+        const contentTextarea = document.getElementById('content');
+        
+        if (!fileInput || !previewContainer) return;
+        
+        function updateSinglePreview(file) {
+          // Revoke old object URLs to avoid memory leaks
+          const oldImgs = previewContainer.querySelectorAll('img');
+          oldImgs.forEach(img => {
+            if (img.src && img.src.startsWith('blob:')) {
+              URL.revokeObjectURL(img.src);
+            }
+          });
+          previewContainer.innerHTML = '';
+          
+          if (!file) {
+            previewContainer.style.display = 'none';
+            return;
+          }
+          
+          previewContainer.style.display = 'flex';
+          
+          const item = document.createElement('div');
+          item.style.position = 'relative';
+          item.style.width = '80px';
+          item.style.height = '80px';
+          
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(file);
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'cover';
+          img.style.borderRadius = '6px';
+          img.style.border = '1px solid rgba(255, 255, 255, 0.15)';
+          img.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.5)';
+          
+          item.title = file.name;
+          
+          const removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.textContent = '✕';
+          removeBtn.style.position = 'absolute';
+          removeBtn.style.top = '-6px';
+          removeBtn.style.right = '-6px';
+          removeBtn.style.background = 'rgba(10, 10, 10, 0.85)';
+          removeBtn.style.border = '1px solid rgba(255, 255, 255, 0.2)';
+          removeBtn.style.borderRadius = '50%';
+          removeBtn.style.color = 'var(--accent-color)';
+          removeBtn.style.cursor = 'pointer';
+          removeBtn.style.width = '18px';
+          removeBtn.style.height = '18px';
+          removeBtn.style.display = 'flex';
+          removeBtn.style.alignItems = 'center';
+          removeBtn.style.justifyContent = 'center';
+          removeBtn.style.fontSize = '9px';
+          removeBtn.style.fontWeight = 'bold';
+          removeBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+          removeBtn.style.padding = '0';
+          removeBtn.style.transition = 'all 0.2s';
+          
+          removeBtn.onmouseover = () => {
+            removeBtn.style.borderColor = 'var(--accent-color)';
+            removeBtn.style.boxShadow = '0 0 5px var(--accent-glow)';
+          };
+          removeBtn.onmouseout = () => {
+            removeBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+            removeBtn.style.boxShadow = '0 2px 4px rgba(0,0,0,0.5)';
+          };
+          
+          removeBtn.addEventListener('click', () => {
+            fileInput.value = '';
+            updateSinglePreview(null);
+          });
+          
+          item.appendChild(img);
+          item.appendChild(removeBtn);
+          previewContainer.appendChild(item);
+        }
+        
+        fileInput.addEventListener('change', () => {
+          if (fileInput.files && fileInput.files[0]) {
+            updateSinglePreview(fileInput.files[0]);
+          } else {
+            updateSinglePreview(null);
+          }
+        });
+        
+        if (contentTextarea) {
+          contentTextarea.addEventListener('paste', (e) => {
+            const files = e.clipboardData?.files || e.originalEvent?.clipboardData?.files;
+            if (files && files[0]) {
+              const file = files[0];
+              if (file.type.startsWith('image/')) {
+                e.preventDefault();
+                const extension = file.type.split('/')[1] || 'png';
+                const newFile = new File([file], `pasted-image-${Date.now()}.${extension}`, { type: file.type });
+                
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(newFile);
+                fileInput.files = dataTransfer.files;
+                
+                updateSinglePreview(newFile);
+              }
+            }
+          });
+        }
+      });
     </script>
   <% } else { %>
     <div class="glass-borders" style="margin-bottom: 20px;">
