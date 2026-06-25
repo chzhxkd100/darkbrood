@@ -778,15 +778,15 @@ app.post('/community/new', upload.single('image'), async (req, res) => {
 
 // Unified Add Comment / Reply (Notice, Diary, Community)
 app.post('/post/:id/comment', upload.single('commentImage'), async (req, res) => {
-    const { content, parentId, redirectType } = req.body;
+    const { content, parentId, redirectType, commentImageUrl } = req.body;
     const postId = req.params.id;
     
-    if ((!content || content.trim() === '') && !req.file) {
+    if ((!content || content.trim() === '') && !req.file && !commentImageUrl) {
         return res.redirect(`/${redirectType || ''}`);
     }
     
     try {
-        const imageUrl = getImageUrl(req, req.file) || null;
+        const imageUrl = getImageUrl(req, req.file) || commentImageUrl || null;
         const commentData = {
             postId,
             content: content || '',
