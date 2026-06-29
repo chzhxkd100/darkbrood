@@ -1,6 +1,11 @@
 # 🤖 Project Development State & AI Hand-off Context
 *이 문서는 개발 현황과 아키텍처를 하나의 파일로 요약하여, 다음 세션의 AI 어시스턴트가 프로젝트 상태를 즉시 파악하고 이어서 작업할 수 있도록 돕는 핸드오프(Hand-off) 문서입니다.*
 
+> [!IMPORTANT]
+> **AI 어시스턴트 지침 (AI Assistant Guidelines)**
+> 1. 이 문서는 현재 프로젝트 구조의 핵심 정보원(Single Source of Truth)입니다. 새로운 작업을 시작하기 전에 반드시 이 문서 전체를 읽고 숙지하십시오.
+> 2. **기능을 추가, 변경 또는 삭제하는 작업을 완료한 후에는 반드시 이 `DEVELOPMENT_STATE.md` 문서도 최신 구현 상태에 맞게 업데이트해야 합니다.** 새로운 경로(Route), EJS 템플릿, DB 스키마, 특이 사항 등을 정확히 반영해 다음 세션의 AI 및 개발자에게 전달하십시오.
+
 ---
 
 ## 1. 프로젝트 개요 (Overview)
