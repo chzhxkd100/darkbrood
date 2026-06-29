@@ -16,3 +16,6 @@ view-source_https___frutigeraeroarchive.org_site_info.html
 # Firebase cache
 .firebase/
 
+# Build artifacts
+public/build_timestamp.txt
+

@@ -75,3 +75,6 @@
    - 버킷에 *균일한 버킷 수준 액세스(Uniform)*가 지정되어 있어 개별 파일 ACL을 직접 지정하는 로직이 있으면 API에서 차단되므로 주의해야 합니다.
 4. **배포 트리거**
    - 로컬에서 수정된 내용을 GitHub `main` 브랜치로 `git push`하면, GitHub Actions 워크플로우(`.github/workflows/deploy.yml`)가 자동으로 돌아 Docker 컨테이너를 빌드하고 GCP Cloud Run 및 Firebase Hosting에 무중단 배포를 완료합니다.
+5. **Firebase Hosting 배포 오류 방지 (동일 파일 해시 우회)**
+   - Firebase Hosting 배포 시, `public` 디렉토리 내의 정적 자산이 이전 배포 상태와 100% 동일하면 Firebase CLI가 `supplied version is the current active version` 에러를 뱉으며 배포 실패(exit code 1)를 유발합니다.
+   - 이를 우회하기 위해 빌드 파이프라인에서 매번 고유한 커밋 SHA 값을 `public/build_timestamp.txt` 파일로 생성하도록 구성했습니다. 이 파일은 `.gitignore` 처리되어 로컬 커밋 내역에는 침범하지 않습니다.

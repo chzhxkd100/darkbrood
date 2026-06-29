@@ -32,6 +32,9 @@ jobs:
       run: |
         gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
+    - name: Write build timestamp to public
+      run: echo "${{ github.sha }}" > public/build_timestamp.txt
+
     - name: Build and Push Docker Image
       run: |
         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/darkbrood-repo/${{ env.SERVICE_NAME }}:${{ github.sha }} .
