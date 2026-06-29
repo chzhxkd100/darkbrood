@@ -90,6 +90,9 @@
             opacity: 0.7 !important;
         }
         .chat-box {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-end !important;
             overflow-y: hidden !important; /* Hide scrollbars in overlay */
             padding-right: 0 !important;
         }
@@ -307,7 +310,7 @@
         const chatInput = document.getElementById('chatInput');
         const chatSendBtn = document.getElementById('chatSendBtn');
         
-        let lastTimestamp = 0;
+        let lastTimestamp = <%= overlay %> ? Date.now() : 0;
         let isFetching = false;
         let isSending = false;
         const POLL_RATE = 4000; // Stream overlay polling rate slightly faster than main site for responsiveness
