@@ -931,6 +931,16 @@ app.post('/chat/send', async (req, res) => {
     }
 });
 
+// Standalone & OBS Overlay Chat Page
+app.get('/chat', (req, res) => {
+    res.render('chat', {
+        overlay: req.query.overlay === 'true',
+        fontSize: req.query.fontSize || '14px',
+        themeColor: req.query.themeColor || '',
+        limit: parseInt(req.query.limit, 10) || 50
+    });
+});
+
 // ----------------------------------------------------
 // ADMIN AUTHENTICATION
 // ----------------------------------------------------
