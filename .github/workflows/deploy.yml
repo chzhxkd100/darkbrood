@@ -55,11 +55,6 @@ jobs:
           --set-env-vars="NODE_ENV=production,FIRESTORE_PROJECT_ID=${{ env.PROJECT_ID }},FIRESTORE_DATABASE_ID=darkbrood-db,GCS_BUCKET_NAME=${{ secrets.GCS_BUCKET_NAME }},ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }},SESSION_SECRET=${{ secrets.SESSION_SECRET }}"
 
     - name: Deploy to Firebase Hosting
-      uses: FirebaseExtended/action-hosting-deploy@v0
-      with:
-        repoToken: "${{ secrets.GITHUB_TOKEN }}"
-        firebaseServiceAccount: "${{ secrets.GCP_SA_KEY }}"
-        projectId: "${{ env.PROJECT_ID }}"
-        channelId: live
-        firebaseToolsVersion: '13.15.0'
+      run: |
+        npx firebase-tools@13.15.0 deploy --only hosting --project ${{ env.PROJECT_ID }}
 

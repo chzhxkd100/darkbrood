@@ -77,7 +77,6 @@
    - 로컬에서 수정된 내용을 GitHub `main` 브랜치로 `git push`하면, GitHub Actions 워크플로우(`.github/workflows/deploy.yml`)가 자동으로 돌아 Docker 컨테이너를 빌드하고 GCP Cloud Run 및 Firebase Hosting에 무중단 배포를 완료합니다.
 5. **Firebase Hosting 배포 오류 방지 및 버전/환경 고정**
    - **이슈 1 (중복 릴리즈 에러)**: Firebase CLI 최신 버전(15.22.3 등)의 버그로 인해 배포가 성공적으로 완료되었음에도 중복 릴리즈 요청이 발생해 `supplied version is the current active version` (400 FAILED_PRECONDITION) 에러와 함께 빌드가 실패 처리되는 현상이 있습니다.
-     - **해결**: 배포 워크플로우에 `firebaseToolsVersion: '13.15.0'`을 지정해 CLI 버전을 명시적으로 고정했습니다.
    - **이슈 2 (OAuth 토큰 발급 시 Premature close 에러)**: Node.js 2026년 6월 보안 업데이트(Node 20.x, 22.x 최신 마이너 버전)로 인한 `http.Agent` 동작 변화로, Firebase CLI 내부의 `node-fetch` 모듈이 구글 OAuth 토큰 발급 시 연결을 강제 종료(`Premature close`)하며 인증 실패를 유발합니다.
-     - **해결**: GitHub Actions 환경의 Node.js 버전을 해당 보안 업데이트 이전의 안정 버전인 `20.15.0`으로 고정(`actions/setup-node@v3`)하여 네트워크 안정성을 확보했습니다.
+     - **중요 해결책**: GitHub Actions에서 자바스크립트 액션(예: `action-hosting-deploy`)을 사용하면 러너 호스트의 기본 Node.js 버전을 따르기 때문에 `actions/setup-node` 설정이 무시됩니다. 따라서 써드파티 액션을 걷어내고 **일반 쉘 스크립트 실행(`run`) 단계**로 대체하여 `npx firebase-tools@13.15.0 deploy`를 직접 구동시켰습니다. 이를 통해 우리가 지정한 `Node 20.15.0` 환경에서 동작하도록 강제하여 두 오류를 모두 해결했습니다.
    - **기타 조치**: 동일 정적 파일 배포 우회를 위해 빌드 시점에 `public/build_timestamp.txt`를 동적 생성하는 처리를 더했습니다. (해당 파일은 `.gitignore`에 등록됨)
