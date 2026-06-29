@@ -56,4 +56,5 @@ jobs:
         firebaseServiceAccount: "${{ secrets.GCP_SA_KEY }}"
         projectId: "${{ env.PROJECT_ID }}"
         channelId: live
+        firebaseToolsVersion: '13.15.0'
 
