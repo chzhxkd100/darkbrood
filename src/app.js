@@ -868,29 +868,43 @@ app.post('/comment/:id/delete', async (req, res) => {
 // REAL-TIME CHAT (SIDEBAR ECHOES)
 // ----------------------------------------------------
 
-// Get chat messages (supports cursor-based polling via since timestamp)
+// Server-side in-memory chat cache to prevent Firestore read charges from continuous polling
+let chatCache = null;
+
+async function getChatCache() {
+    const now = Date.now();
+    if (chatCache === null) {
+        try {
+            const snapshot = await db.collection('chat')
+                .orderBy('createdAt', 'desc')
+                .limit(50)
+                .get();
+            const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            chatCache = rawMsgs.reverse();
+            console.log(`Chat cache initialized with ${chatCache.length} messages.`);
+        } catch (err) {
+            console.error('Failed to initialize chat cache:', err);
+            return [];
+        }
+    }
+    // Filter out expired messages (older than 24h)
+    chatCache = chatCache.filter(msg => msg.expireAt > now);
+    return chatCache;
+}
+
+// Get chat messages (reads from in-memory cache to save GCP costs)
 app.get('/chat/messages', async (req, res) => {
     try {
         const since = req.query.since ? parseInt(req.query.since, 10) : null;
+        const cache = await getChatCache();
         
         if (since && !isNaN(since)) {
-            // Fetch only new messages since the last received message timestamp
-            const snapshot = await db.collection('chat')
-                .where('createdAt', '>', since)
-                .orderBy('createdAt', 'asc')
-                .limit(50)
-                .get();
-            const newMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Filter only new messages since the last received message timestamp
+            const newMsgs = cache.filter(msg => msg.createdAt > since);
             return res.json(newMsgs);
         } else {
-            // Initial load: fetch latest 20 messages, ordering by createdAt descending
-            const snapshot = await db.collection('chat')
-                .orderBy('createdAt', 'desc')
-                .limit(20)
-                .get();
-            
-            const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const latest20 = rawMsgs.reverse(); // Display chronologically
+            // Initial load: return latest 20 messages
+            const latest20 = cache.slice(-20);
             return res.json(latest20);
         }
     } catch (err) {
@@ -899,7 +913,7 @@ app.get('/chat/messages', async (req, res) => {
     }
 });
 
-// Send a new chat message (anonymous with masked IP and 24h TTL field)
+// Send a new chat message (adds to Firestore and updates in-memory cache)
 app.post('/chat/send', async (req, res) => {
     const { content } = req.body;
     if (!content || content.trim() === '') {
@@ -907,7 +921,6 @@ app.post('/chat/send', async (req, res) => {
     }
     try {
         const createdAt = Date.now();
-        // TTL policy helper: expiration set to 24 hours in the future
         const expireAt = createdAt + 24 * 60 * 60 * 1000;
         
         const chatData = {
@@ -923,7 +936,16 @@ app.post('/chat/send', async (req, res) => {
             chatData.authorNickname = '운영자';
         }
 
-        await db.collection('chat').add(chatData);
+        const docRef = await db.collection('chat').add(chatData);
+        chatData.id = docRef.id;
+
+        // Push to local memory cache and restrict to 50 items
+        if (chatCache !== null) {
+            chatCache.push(chatData);
+            if (chatCache.length > 50) {
+                chatCache.shift();
+            }
+        }
         res.json({ success: true });
     } catch (err) {
         console.error('Error in POST /chat/send:', err.stack || err);
@@ -931,10 +953,10 @@ app.post('/chat/send', async (req, res) => {
     }
 });
 
-// Standalone & OBS Overlay Chat Page
+// Standalone & OBS Overlay Chat Page (default to overlay style)
 app.get('/chat', (req, res) => {
     res.render('chat', {
-        overlay: req.query.overlay === 'true',
+        overlay: req.query.overlay !== 'false',
         fontSize: req.query.fontSize || '14px',
         themeColor: req.query.themeColor || '',
         limit: parseInt(req.query.limit, 10) || 50
