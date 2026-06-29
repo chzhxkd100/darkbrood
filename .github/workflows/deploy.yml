@@ -56,5 +56,5 @@ jobs:
 
     - name: Deploy to Firebase Hosting
       run: |
-        npx firebase-tools@13.15.0 deploy --only hosting --project ${{ env.PROJECT_ID }}
+        npx firebase-tools@15.20.0 deploy --only hosting --project ${{ env.PROJECT_ID }}
 
