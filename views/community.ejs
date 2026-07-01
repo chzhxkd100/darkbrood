@@ -473,4 +473,140 @@
   }) %>
 </section>
 
+<script>
+  window.sessionState = {
+    isAdmin: <%= isAdmin %>,
+    user: <%- user ? JSON.stringify(user) : 'null' %>,
+    anonId: <%- locals.anonId ? JSON.stringify(anonId) : 'null' %>
+  };
+
+  window.renderPostItem = function(post, usersMap) {
+    const session = window.sessionState;
+    const authorAvatar = (usersMap && usersMap[post.authorNickname]) ? usersMap[post.authorNickname] : null;
+    
+    let authorHTML = '';
+    if (post.authorNickname && post.authorId) {
+      const avatarTag = authorAvatar ? `<img src="${authorAvatar}" alt="Profile" style="width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-color); box-shadow: 0 0 5px var(--accent-glow);" />` : '';
+      authorHTML = `
+        ${avatarTag}
+        <a href="/profile/${post.authorId}" title="${post.authorNickname} 님의 프로필 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline; font-size: 14px;">
+          ${post.authorNickname}
+        </a>
+      `;
+    } else if (post.authorNickname) {
+      authorHTML = `<span style="color: #cc6666; font-weight: bold; font-size: 14px;">${post.authorNickname}</span>`;
+    } else {
+      authorHTML = `
+        <a href="/community?author=${encodeURIComponent(post.authorIp)}" title="익명(${post.authorIp}) 님의 글만 보기" style="color: #cc6666; font-weight: bold; text-decoration: underline; font-size: 14px;">
+          익명 (${post.authorIp})
+        </a>
+      `;
+    }
+
+    const deleteFormHTML = post.canDelete ? `
+      <form action="/post/${post.id}/delete" method="POST" style="display:inline; margin-left: 10px;">
+        <input type="hidden" name="redirectType" value="community" />
+        <button type="submit" class="admin-del-btn" onclick="return confirm('이 글을 영구 삭제하시겠습니까?')">${post.deleteLabel}</button>
+      </form>
+    ` : '';
+
+    const titleHTML = (post.title && post.title !== '무제') ? `<h3 class="community-subject">${post.title}</h3>` : '';
+
+    let imagesHTML = '';
+    if (post.imageUrls && post.imageUrls.length > 1) {
+      const imagesList = post.imageUrls.map((url, idx) => `
+        <div class="post-image-container ${idx > 0 ? 'additional-image' : 'first-image'}" data-index="${idx}" style="${idx >= 5 ? 'display: none !important;' : ''}">
+          <a href="${url}" class="lightbox-trigger" data-index="${idx}" title="클릭하여 확대">
+            <img src="${url}" alt="첨부 이미지" class="post-thumbnail" />
+          </a>
+        </div>
+      `).join('');
+      
+      const moreBtnHTML = post.imageUrls.length > 5 ? `
+        <button type="button" class="show-more-images-btn" data-visible-count="5">더보기</button>
+        <button type="button" class="view-all-images-btn">전체보기</button>
+      ` : '';
+
+      imagesHTML = `
+        <div class="post-images-group collapsed" data-total-images="${post.imageUrls.length}">
+          ${imagesList}
+          ${moreBtnHTML}
+          <button type="button" class="collapse-images-btn" title="이미지 접기">접기 ↩</button>
+        </div>
+      `;
+    } else if (post.imageUrls && post.imageUrls.length === 1) {
+      imagesHTML = `
+        <div class="post-image-container">
+          <a href="${post.imageUrls[0]}" class="lightbox-trigger" title="클릭하여 확대">
+            <img src="${post.imageUrls[0]}" alt="첨부 이미지" class="post-thumbnail" />
+          </a>
+        </div>
+      `;
+    } else if (post.imageUrl) {
+      imagesHTML = `
+        <div class="post-image-container">
+          <a href="${post.imageUrl}" class="lightbox-trigger" title="클릭하여 확대">
+            <img src="${post.imageUrl}" alt="첨부 이미지" class="post-thumbnail" />
+          </a>
+        </div>
+      `;
+    }
+
+    const hasMultipleClass = (post.imageUrls && post.imageUrls.length > 1) ? 'has-multiple-images' : '';
+
+    return `
+      <div class="glass-borders" id="post-${post.id}">
+        <article class="styled-containers aero-borders community-post">
+          <div class="post-header">
+            <span class="post-author" style="display: inline-flex; align-items: center; gap: 8px;">
+              ${authorHTML}
+            </span>
+            <span class="post-date" data-timestamp="${post.createdAt}"></span>
+            ${deleteFormHTML}
+          </div>
+          ${titleHTML}
+          <div class="post-body ${hasMultipleClass}">
+            ${imagesHTML}
+            <div class="post-text-content">
+              ${post.content}
+            </div>
+          </div>
+          <div class="comments-section styled-containers-layer-2 aero-borders" style="margin-top: 15px;">
+            <div class="comments-list">
+              <p class="no-comments" style="font-size: 12px; color: var(--text-secondary); font-style: italic; text-align: center; margin: 10px 0;">댓글이 없습니다. 첫 번째 메아리를 울려보세요.</p>
+            </div>
+            <form action="/post/${post.id}/comment" method="POST" enctype="multipart/form-data" class="comment-form" onsubmit="handleCommentSubmit(event, this)" style="margin-top: 12px; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+              <input type="hidden" name="redirectType" value="community" />
+              <input type="hidden" name="commentImageUrl" class="comment-image-url-input" />
+              <div style="display: flex; gap: 6px; width: 100%;">
+                <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
+                  <input type="text" name="content" placeholder="댓글을 작성해 주세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12.5px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
+                  <div class="comment-preview-container" style="display: none; align-items: center; margin-right: 8px; position: relative;">
+                    <img class="comment-preview-img" src="" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);" />
+                    <button type="button" class="comment-preview-remove" style="position: absolute; top: -5px; right: -5px; background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; color: var(--accent-color); cursor: pointer; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onclick="clearCommentImage(this)">✕</button>
+                  </div>
+                  <label style="font-size: 11px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                    <span>이미지 첨부</span>
+                    <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
+                  </label>
+                </div>
+                <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 12px; padding: 6px 12px; cursor: pointer; font-weight: bold; white-space: nowrap; height: 32px; display: inline-flex; align-items: center; justify-content: center;">댓글</button>
+              </div>
+              <div class="comment-upload-progress-container" style="display: none; margin-top: 4px; width: 100%;">
+                <div class="progress-bar-bg" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 2px; position: relative; overflow: hidden; height: 12px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                  <div class="comment-upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #aa0000, #ff3333); border-radius: 2px; transition: width 0.1s linear; box-shadow: 0 0 5px rgba(255, 51, 51, 0.6);"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; color: #ccc;">
+                  <span class="comment-upload-progress-text">업로드 준비 중... (0%)</span>
+                  <span class="comment-upload-progress-speed">0.00 MB/s</span>
+                </div>
+              </div>
+            </form>
+          </div>
+        </article>
+      </div>
+    `;
+  };
+</script>
+
 <%- include('footer') %>

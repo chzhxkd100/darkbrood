@@ -953,6 +953,87 @@ app.post('/chat/send', async (req, res) => {
     }
 });
 
+// ----------------------------------------------------
+// REAL-TIME POSTS & COMMENTS UPDATES
+// ----------------------------------------------------
+app.get('/posts/updates', async (req, res) => {
+    const { type, since, postIds: postIdsRaw, commentsSince } = req.query;
+    const sinceTime = since ? parseInt(since, 10) : 0;
+    const commentsSinceTime = commentsSince ? parseInt(commentsSince, 10) : 0;
+    
+    let postIds = [];
+    if (postIdsRaw) {
+        try {
+            postIds = JSON.parse(postIdsRaw);
+        } catch (e) {
+            if (typeof postIdsRaw === 'string') {
+                postIds = postIdsRaw.split(',');
+            }
+        }
+    }
+
+    try {
+        const responseData = {
+            newPosts: [],
+            newComments: [],
+            usersMap: res.locals.usersMap || {}
+        };
+
+        // 1. Fetch new posts if type is provided and sinceTime is greater than 0
+        if (type && sinceTime > 0) {
+            const postsSnap = await db.collection('posts')
+                .where('type', '==', type)
+                .where('createdAt', '>', sinceTime)
+                .get();
+            
+            const rawPosts = postsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            
+            // Map and calculate canDelete
+            responseData.newPosts = rawPosts.map(post => {
+                let canDelete = false;
+                let deleteLabel = "삭제";
+                if (req.session.isAdmin) {
+                    canDelete = true;
+                    deleteLabel = "삭제 (운영자)";
+                } else if (req.session.user && (post.authorId === req.session.user.id || post.authorNickname === req.session.user.nickname)) {
+                    canDelete = true;
+                } else if (post.authorIp && req.session.anonId && post.authorIp === req.session.anonId) {
+                    canDelete = true;
+                }
+                return { ...post, canDelete, deleteLabel };
+            });
+        }
+
+        // 2. Fetch new comments if we have postIds to watch and commentsSinceTime is greater than 0
+        if (postIds.length > 0 && commentsSinceTime > 0) {
+            const commentsSnap = await db.collection('comments')
+                .where('createdAt', '>', commentsSinceTime)
+                .get();
+            
+            const rawComments = commentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Filter in memory to avoid "in" query limits or complex index requirements in Firestore
+            const filteredComments = rawComments.filter(comment => postIds.includes(comment.postId));
+            
+            responseData.newComments = filteredComments.map(comment => {
+                let canDelete = false;
+                if (req.session.isAdmin) {
+                    canDelete = true;
+                } else if (req.session.user && comment.authorId === req.session.user.id) {
+                    canDelete = true;
+                } else if (!comment.authorId && req.session.anonId && comment.authorIp === req.session.anonId) {
+                    canDelete = true;
+                }
+                return { ...comment, canDelete };
+            });
+        }
+
+        res.json(responseData);
+    } catch (err) {
+        console.error('Error in GET /posts/updates:', err);
+        res.status(500).json({ error: 'Database Error' });
+    }
+});
+
 // Standalone & OBS Overlay Chat Page (default to overlay style)
 app.get('/chat', (req, res) => {
     res.render('chat', {

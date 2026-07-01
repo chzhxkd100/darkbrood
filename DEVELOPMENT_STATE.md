@@ -70,6 +70,15 @@
     - 게임 및 방송 화면 위에서도 잘 보이도록 텍스트에 검은색 외곽선 효과(`text-shadow`)가 강하게 적용되어 있습니다.
     - **중요**: OBS의 백그라운드 렌더러 특성상 포커스가 맞추어지지 않아도 실시간으로 채팅이 계속 업데이트되어야 하므로, 오버레이 모드에서는 탭 비활성화 감지(`document.hidden`) 및 Idle 타임아웃 감지 로직을 우회하여 무중단 실시간 폴링이 보장됩니다.
 
+### 6) 실시간 게시글 및 댓글 업데이트 (Real-time Posts & Comments)
+수동으로 새로고침하지 않아도 최신 게시물과 댓글이 동적으로 렌더링되며, 스마트 비용 절감형 폴링으로 동작합니다.
+- **백엔드 경로**:
+  - `GET /posts/updates`: `type` (게시판 종류), `since` (최신 글 시간), `postIds` (현재 화면의 글 목록), `commentsSince` (최신 댓글 시간) 파라미터를 받아 신규 데이터 반환. 세션에 기반해 각 항목의 `canDelete` 권한 미리 계산.
+- **프론트엔드 엔진 (`public/js/global.js` & `window.renderPostItem`)**:
+  - `global.js`에서 10초 간격으로 `/posts/updates` 호출 (액티브 10초, 백그라운드 30초, Idle 20초).
+  - 신규 게시물은 각 EJS 템플릿(광장, 다이어리) 하단에 선언 및 등록된 `window.renderPostItem` 헬퍼 함수를 이용해 동적으로 DOM 조립 및 prepend 처리.
+  - 신규 댓글/대댓글은 global.js 단에서 DOM 관계(일반 댓글은 `.comments-list` 맨 뒤, 대댓글은 `#reply-form-parentId` 바로 위)를 파악해 동적 append 처리.
+
 ---
 
 ## 4. 고유 아키텍처 특이사항 (AI 필수 참고)

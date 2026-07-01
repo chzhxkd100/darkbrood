@@ -61,20 +61,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chatInput');
     
     let lastTimestamp = 0;
-    let pollIntervalId = null;
+    let chatTimeoutId = null;
     let idleTimerId = null;
     let isIdle = false;
     let isChatVisible = true; // Tracks if the chat widget is visible in viewport
     let isFetching = false;   // Prevents overlapping/duplicate POLL requests
     let isSending = false;    // Separate flag for send requests (don't block with isFetching)
     
-    const POLL_RATE = 6000; // Increased poll rate to 6 seconds to reduce read counts
+    const POLL_RATE = 6000; // Active poll rate: 6 seconds
     const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
 
     // Intersection Observer: stops polling when chat is out of view.
-    // On mobile the aside starts as visibility:hidden which causes Chrome to fire
-    // isIntersecting=false immediately, locking isChatVisible=false forever.
-    // We avoid this by only using the observer on desktop (no aside slide menu).
     const chatWidget = document.querySelector('.chat-widget');
     const isMobileLayout = () => window.matchMedia('(max-width: 768px)').matches;
 
@@ -84,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isChatVisible = entry.isIntersecting;
                 if (isChatVisible) {
                     resetIdleTimer();
-                    startPolling();
+                    scheduleNextChatPoll();
                 } else {
                     stopPolling();
                 }
@@ -93,9 +90,19 @@ document.addEventListener('DOMContentLoaded', () => {
         observer.observe(chatWidget);
     }
 
+    function getNextChatDelay() {
+        if (document.hidden) {
+            return 15000; // Background: 15 seconds
+        }
+        if (isIdle) {
+            return 12000; // Idle: 12 seconds
+        }
+        return POLL_RATE; // Active: 6 seconds
+    }
+
     async function loadChatMessages() {
         // Skip fetching if hidden, idle, not in viewport, or another fetch is in progress
-        if (!chatBox || isIdle || document.hidden || !isChatVisible || isFetching) return;
+        if (!chatBox || !isChatVisible || isFetching) return;
         
         isFetching = true;
         try {
@@ -124,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Initial load: render all 20 messages
                     chatBox.innerHTML = newHTML;
                 } else {
-                    // Incremental update: append new messages only (no DOM thrashing)
+                    // Incremental update: append new messages only
                     chatBox.insertAdjacentHTML('beforeend', newHTML);
                 }
                 
@@ -150,16 +157,23 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     }
 
+    function scheduleNextChatPoll() {
+        if (chatTimeoutId) clearTimeout(chatTimeoutId);
+        chatTimeoutId = setTimeout(async () => {
+            await loadChatMessages();
+            scheduleNextChatPoll();
+        }, getNextChatDelay());
+    }
+
     function startPolling() {
-        if (pollIntervalId) return;
         loadChatMessages();
-        pollIntervalId = setInterval(loadChatMessages, POLL_RATE);
+        scheduleNextChatPoll();
     }
 
     function stopPolling() {
-        if (pollIntervalId) {
-            clearInterval(pollIntervalId);
-            pollIntervalId = null;
+        if (chatTimeoutId) {
+            clearTimeout(chatTimeoutId);
+            chatTimeoutId = null;
         }
     }
 
@@ -170,7 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isIdle) {
             isIdle = false;
             if (chatInput) chatInput.placeholder = "메아리 투척...";
-            startPolling();
+            scheduleNextChatPoll();
+            scheduleNextPostPoll();
         }
         
         idleTimerId = setTimeout(goIdle, IDLE_LIMIT);
@@ -178,18 +193,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function goIdle() {
         isIdle = true;
-        stopPolling();
-        if (chatInput) chatInput.placeholder = "대기 모드 (움직여서 활성화)";
+        if (chatInput) chatInput.placeholder = "대기 모드 (메아리 지속 수신)";
+        scheduleNextChatPoll();
+        scheduleNextPostPoll();
     }
 
     // Visibility API support (Tab switching / Minimizing)
     document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            stopPolling();
-        } else {
-            resetIdleTimer();
-            startPolling();
-        }
+        scheduleNextChatPoll();
+        scheduleNextPostPoll();
     });
 
     // Detect user interactions to reset idle timer
@@ -201,6 +213,306 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chatBox) {
         startPolling();
         resetIdleTimer();
+    }
+
+    // ==========================================================================
+    // 2-2. Real-time Posts & Comments Polling Engine
+    // ==========================================================================
+    let postTimeoutId = null;
+    let isPostFetching = false;
+    let latestPostTimestamp = 0;
+    let latestCommentTimestamp = 0;
+
+    function getPostTypeFromPath() {
+        const path = window.location.pathname;
+        if (path === '/community') return 'community';
+        if (path === '/diary') return 'diary';
+        if (path === '/notice') return 'notice';
+        return null;
+    }
+
+    function getNextPostDelay() {
+        if (document.hidden) {
+            return 30000; // Background: 30 seconds
+        }
+        if (isIdle) {
+            return 20000; // Idle: 20 seconds
+        }
+        return 10000; // Active: 10 seconds
+    }
+
+    function getRenderedPostIds() {
+        const postElements = document.querySelectorAll('[id^="post-"]');
+        const ids = [];
+        postElements.forEach(el => {
+            const id = el.id.replace('post-', '');
+            if (id) ids.push(id);
+        });
+        return ids;
+    }
+
+    function initializeTimestamps() {
+        const dates = document.querySelectorAll('.post-date');
+        let maxPostTime = 0;
+        dates.forEach(el => {
+            const ts = parseInt(el.getAttribute('data-timestamp'), 10);
+            if (ts && ts > maxPostTime) maxPostTime = ts;
+        });
+        latestPostTimestamp = maxPostTime;
+
+        const commentDates = document.querySelectorAll('.comment-date');
+        let maxCommentTime = 0;
+        commentDates.forEach(el => {
+            const ts = parseInt(el.getAttribute('data-timestamp'), 10);
+            if (ts && ts > maxCommentTime) maxCommentTime = ts;
+        });
+        latestCommentTimestamp = maxCommentTime;
+    }
+
+    async function loadPostUpdates() {
+        const type = getPostTypeFromPath();
+        const postIds = getRenderedPostIds();
+        
+        if (!type && postIds.length === 0) return;
+        if (isPostFetching) return;
+
+        isPostFetching = true;
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const page = parseInt(urlParams.get('page')) || 1;
+            const isFirstPage = page === 1;
+
+            const targetType = isFirstPage ? type : null;
+            const postQuery = targetType ? `&type=${targetType}&since=${latestPostTimestamp}` : '';
+            const commentQuery = postIds.length > 0 ? `&postIds=${JSON.stringify(postIds)}&commentsSince=${latestCommentTimestamp}` : '';
+
+            if (!postQuery && !commentQuery) return;
+
+            const res = await fetch(`/posts/updates?_${Date.now()}${postQuery}${commentQuery}`);
+            if (!res.ok) throw new Error('Failed to fetch post updates');
+            const data = await res.json();
+
+            // 1. Process new posts
+            if (data.newPosts && data.newPosts.length > 0) {
+                data.newPosts.sort((a, b) => a.createdAt - b.createdAt);
+                
+                const container = document.querySelector('.community-list-container, .diary-list-container');
+                if (container && typeof window.renderPostItem === 'function') {
+                    // Remove empty message if exists
+                    const emptyPlaceholder = container.querySelector('.styled-containers.aero-borders');
+                    if (emptyPlaceholder && emptyPlaceholder.textContent.includes('비어 있습니다')) {
+                        const parentPlaceholder = emptyPlaceholder.closest('.glass-borders');
+                        if (parentPlaceholder) parentPlaceholder.remove();
+                        else emptyPlaceholder.remove();
+                    }
+
+                    data.newPosts.forEach(post => {
+                        if (document.getElementById(`post-${post.id}`)) return;
+
+                        const postHTML = window.renderPostItem(post, data.usersMap);
+                        if (postHTML) {
+                            container.insertAdjacentHTML('afterbegin', postHTML);
+                            
+                            // Re-format timestamps for the newly prepended post
+                            const newPostEl = document.getElementById(`post-${post.id}`);
+                            if (newPostEl) {
+                                newPostEl.querySelectorAll('.post-date, .comment-date').forEach(el => {
+                                    const timestamp = el.getAttribute('data-timestamp');
+                                    if (timestamp) {
+                                        const date = new Date(parseInt(timestamp, 10));
+                                        el.textContent = el.tagName === 'STRONG' ? date.toLocaleDateString('ko-KR') : date.toLocaleString('ko-KR');
+                                    }
+                                });
+                            }
+                        }
+
+                        if (post.createdAt > latestPostTimestamp) {
+                            latestPostTimestamp = post.createdAt;
+                        }
+                    });
+                }
+            }
+
+            // 2. Process new comments
+            if (data.newComments && data.newComments.length > 0) {
+                data.newComments.sort((a, b) => a.createdAt - b.createdAt);
+
+                data.newComments.forEach(comment => {
+                    if (document.getElementById(`comment-${comment.id}`)) return;
+
+                    const postEl = document.getElementById(`post-${comment.postId}`);
+                    if (!postEl) return;
+
+                    const commentsSection = postEl.querySelector('.comments-section');
+                    if (!commentsSection) return;
+
+                    const commentsList = commentsSection.querySelector('.comments-list');
+                    if (commentsList) {
+                        const noComments = commentsList.querySelector('.no-comments');
+                        if (noComments) noComments.remove();
+
+                        const usersMap = data.usersMap || {};
+                        const avatarUrl = usersMap[comment.authorNickname] || null;
+                        const avatarHTML = avatarUrl ? `<img src="${avatarUrl}" alt="Profile" style="width: ${comment.parentId ? '20px' : '24px'}; height: ${comment.parentId ? '20px' : '24px'}; border-radius: 50%; object-fit: cover; border: 1px solid var(--accent-color);" />` : '';
+                        
+                        let authorHTML = '';
+                        if (comment.authorNickname && comment.authorId) {
+                            authorHTML = `
+                                ${avatarHTML}
+                                <a href="/profile/${comment.authorId}" title="${comment.authorNickname} 님의 프로필 보기" style="color: var(--text-primary); font-weight: bold; text-decoration: underline;">
+                                    ${comment.authorNickname}
+                                </a>
+                            `;
+                        } else if (comment.authorNickname) {
+                            authorHTML = comment.authorNickname;
+                        } else {
+                            authorHTML = `匿名 (${comment.authorIp})`;
+                        }
+
+                        const deleteFormHTML = comment.canDelete ? `
+                            <form action="/comment/${comment.id}/delete" method="POST" style="display: inline; margin: 0;">
+                                <input type="hidden" name="redirectType" value="${type || ''}" />
+                                <button type="submit" class="comment-delete-btn" onclick="return confirm('이 댓글을 삭제하시겠습니까?')" style="background: transparent; border: 1px solid rgba(220, 53, 69, 0.3); color: #ff4d4d; font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                                    삭제
+                                </button>
+                            </form>
+                        ` : '';
+
+                        const imageHTML = comment.imageUrl ? `
+                            <div class="comment-image-container" style="margin-top: ${comment.parentId ? '4px' : '6px'}; margin-bottom: ${comment.parentId ? '4px' : '6px'}; ${comment.parentId ? 'padding-left: 14px;' : ''}">
+                                <a href="${comment.imageUrl}" class="lightbox-trigger" title="클릭하여 확대">
+                                    <img src="${comment.imageUrl}" alt="댓글 이미지" class="comment-thumbnail" />
+                                </a>
+                            </div>
+                        ` : '';
+
+                        let commentHTML = '';
+                        if (comment.parentId) {
+                            commentHTML = `
+                                <div class="comment-item reply-item" id="comment-${comment.id}" style="margin-left: 20px; border-left: 2px dashed var(--accent-glow); background: rgba(255, 255, 255, 0.01); padding: 6px 10px; margin-top: 4px; border-radius: 0 4px 4px 0;">
+                                    <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px; width: 100%;">
+                                        <div style="display: flex; align-items: center; gap: 6px;">
+                                            <span class="reply-icon" style="color: var(--accent-color); font-weight: bold; font-size: 12px;">└</span>
+                                            <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
+                                                ${authorHTML}
+                                            </span>
+                                            <span class="comment-date" data-timestamp="${comment.createdAt}"></span>
+                                        </div>
+                                        ${deleteFormHTML}
+                                    </div>
+                                    ${imageHTML}
+                                    <div class="comment-text" style="padding-left: 14px; color: var(--text-primary); font-size: 12px;">${escapeHTML(comment.content)}</div>
+                                </div>
+                            `;
+
+                            const replyFormContainer = commentsList.querySelector(`#reply-form-${comment.parentId}`);
+                            if (replyFormContainer) {
+                                replyFormContainer.insertAdjacentHTML('beforebegin', commentHTML);
+                            } else {
+                                commentsList.insertAdjacentHTML('beforeend', commentHTML);
+                            }
+                        } else {
+                            commentHTML = `
+                                <div class="comment-item" id="comment-${comment.id}">
+                                    <div class="comment-header" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+                                        <div>
+                                            <span class="comment-author" style="display: inline-flex; align-items: center; gap: 4px;">
+                                                ${authorHTML}
+                                            </span>
+                                            <span class="comment-date" data-timestamp="${comment.createdAt}"></span>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; align-items: center;">
+                                            <button type="button" class="reply-toggle-btn" onclick="toggleReplyForm('${comment.id}')" style="background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-secondary); font-size: 10.5px; padding: 2px 6px; border-radius: 3px; cursor: pointer; transition: all 0.2s;">
+                                                답글
+                                            </button>
+                                            ${deleteFormHTML}
+                                        </div>
+                                    </div>
+                                    ${imageHTML}
+                                    <div class="comment-text" style="color: var(--text-primary); font-size: 12.5px;">${escapeHTML(comment.content)}</div>
+                                </div>
+                                
+                                <div id="reply-form-${comment.id}" class="reply-form-container" style="display: none; margin-left: 20px; margin-top: 6px; margin-bottom: 10px;">
+                                    <form action="/post/${comment.postId}/comment" method="POST" enctype="multipart/form-data" class="comment-form" onsubmit="handleCommentSubmit(event, this)" style="display: flex; flex-direction: column; gap: 6px;">
+                                        <input type="hidden" name="parentId" value="${comment.id}" />
+                                        <input type="hidden" name="redirectType" value="${type || ''}" />
+                                        <input type="hidden" name="commentImageUrl" class="comment-image-url-input" />
+                                        
+                                        <div style="display: flex; gap: 6px; width: 100%;">
+                                            <div class="comment-input-wrapper" style="flex: 1; display: flex; align-items: center; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 4px; padding: 2px 8px; transition: border-color 0.2s;">
+                                                <input type="text" name="content" placeholder="답글을 남기세요..." style="flex: 1; background: transparent; border: none; color: #fff; padding: 6px 0; font-size: 12px; outline: none; font-family: inherit;" onfocus="this.parentNode.style.borderColor='var(--accent-color)'" onblur="this.parentNode.style.borderColor='rgba(255, 255, 255, 0.1)'" />
+                                                
+                                                <div class="comment-preview-container" style="display: none; align-items: center; margin-right: 8px; position: relative;">
+                                                    <img class="comment-preview-img" src="" style="width: 28px; height: 28px; object-fit: cover; border-radius: 4px; border: 1px solid rgba(255,255,255,0.2);" />
+                                                    <button type="button" class="comment-preview-remove" style="position: absolute; top: -5px; right: -5px; background: rgba(10, 10, 10, 0.85); border: 1px solid rgba(255,255,255,0.2); border-radius: 50%; color: var(--accent-color); cursor: pointer; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; padding: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.5);" onclick="clearCommentImage(this)">✕</button>
+                                                </div>
+                                                
+                                                <label style="font-size: 10px; color: var(--text-secondary); cursor: pointer; padding: 3px 5px; border-radius: 3px; display: inline-flex; align-items: center; transition: all 0.2s; white-space: nowrap; background: rgba(255,255,255,0.04);" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.04)'">
+                                                    <span>이미지 첨부</span>
+                                                    <input type="file" name="commentImage" accept="image/*" style="display: none;" onchange="updateCommentFileName(this)" />
+                                                </label>
+                                            </div>
+                                            <button type="submit" class="comment-submit-btn" style="background: var(--button-gradient); border: 1px solid var(--button-border); border-radius: 4px; color: #fff; font-size: 11.5px; padding: 5px 10px; cursor: pointer; font-weight: bold; white-space: nowrap; height: 28px; display: inline-flex; align-items: center; justify-content: center;">답글</button>
+                                        </div>
+                                        <div class="comment-upload-progress-container" style="display: none; margin-top: 4px; width: 100%;">
+                                            <div class="progress-bar-bg" style="background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 4px; padding: 2px; position: relative; overflow: hidden; height: 12px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.5);">
+                                                <div class="comment-upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #aa0000, #ff3333); border-radius: 2px; transition: width 0.1s linear; box-shadow: 0 0 5px rgba(255, 51, 51, 0.6);"></div>
+                                            </div>
+                                            <div style="display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; color: #ccc;">
+                                                <span class="comment-upload-progress-text">업로드 준비 중... (0%)</span>
+                                                <span class="comment-upload-progress-speed">0.00 MB/s</span>
+                                            </div>
+                                        </div>
+                                    </form>
+                                </div>
+                            `;
+                            
+                            commentsList.insertAdjacentHTML('beforeend', commentHTML);
+                        }
+
+                        // Re-format timestamps for the newly prepended comment
+                        const newCommentEl = document.getElementById(`comment-${comment.id}`);
+                        if (newCommentEl) {
+                            newCommentEl.querySelectorAll('.comment-date').forEach(el => {
+                                const timestamp = el.getAttribute('data-timestamp');
+                                if (timestamp) {
+                                    const date = new Date(parseInt(timestamp, 10));
+                                    el.textContent = date.toLocaleString('ko-KR');
+                                }
+                            });
+                        }
+
+                        if (comment.createdAt > latestCommentTimestamp) {
+                            latestCommentTimestamp = comment.createdAt;
+                        }
+                    }
+                });
+            }
+
+        } catch (err) {
+            console.error('Post polling error:', err);
+        } finally {
+            isPostFetching = false;
+        }
+    }
+
+    function scheduleNextPostPoll() {
+        if (postTimeoutId) clearTimeout(postTimeoutId);
+        postTimeoutId = setTimeout(async () => {
+            await loadPostUpdates();
+            scheduleNextPostPoll();
+        }, getNextPostDelay());
+    }
+
+    function startPostPolling() {
+        initializeTimestamps();
+        loadPostUpdates();
+        scheduleNextPostPoll();
+    }
+
+    const currentPostType = getPostTypeFromPath();
+    if (currentPostType || getRenderedPostIds().length > 0) {
+        startPostPolling();
     }
 
     if (chatForm) {
