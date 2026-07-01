@@ -33,7 +33,7 @@
 ## 3. 핵심 기능별 경로 및 아키텍처
 
 ### 1) 신전 (Notice & Intro - `/`)
-- **설명**: 메인 대시보드로, 데이터베이스의 `posts` 컬렉션 중 `type: 'notice'` 필터링 공지사항을 노출하고 관리자 인트로 메시지를 출력합니다.
+- **설명**: 메인 대시보드로, 데이터베이스의 `posts` 컬렉션 중 `type: 'notice'` 필터링 공지사항을 노출하고 관리자 인트로 메시지를 출력합니다. 최근 안내 사항은 최신순 5개 노출 제한이 적용됩니다.
 - **템플릿**: `views/index.ejs`, `views/notice.ejs`
 
 ### 2) 사념 (Diary - `/diary`)
@@ -53,13 +53,14 @@
 - **템플릿**: `views/profile.ejs`
 
 ### 5) 심연의 메아리 (Real-time Chat)
-실시간 채팅은 주기적인 폴링(Cursor-based polling) 구조로 동작하며, 사이드바 위젯과 독립형/OBS 브라우저 소스 전용 화면으로 이원화되어 있습니다.
+실시간 채팅은 주기적인 폴링(Cursor-based polling) 구조 및 역무한 스크롤(Reverse Infinite Scroll) 페이징을 결합하여 지원하며, 사이드바 위젯과 독립형/OBS 브라우저 소스 전용 화면으로 이원화되어 있습니다.
 
 - **백엔드 경로**:
-  - `GET /chat/messages`: 최신 20개 메시지를 불러오거나 `?since={timestamp}` 파라미터 전달 시 그 이후의 새로운 메시지만 가져옴.
+  - `GET /chat/messages`: 최신 20개 메시지를 불러오거나, `?since={timestamp}` 파라미터 전달 시 그 이후의 신규 메시지를, `?before={timestamp}` 파라미터 전달 시 그 이전의 이전 메시지들(최대 20개)을 DB에서 직접 조회해 오름차순으로 정렬하여 반환합니다.
   - `POST /chat/send`: 메시지 전송 및 24시간 후 자동 파기 TTL 설정을 위해 `expireAt` 필드 기록.
 - **사이드바 위젯 UI (`views/header.ejs` & `public/js/global.js`)**:
   - 웹사이트의 좌측 사이드바에 내장되어 있으며, 비활성 탭 상태(`document.hidden`)이거나 3분간 입력이 없는 경우(Idle) 데이터베이스 비용 절감을 위해 폴링이 자동 일시 중지됩니다.
+  - 채팅창의 스크롤바가 맨 위(`scrollTop === 0`)에 도달하면 `loadMoreChatMessages` 함수가 격발되어 이전 대화 기록을 fetch해 역무한 스크롤(Reverse Infinite Scroll) 방식으로 마운트하고, 스크롤 포인터가 튀지 않도록 유지합니다.
   - 제목 옆에 독립형 채팅방 바로가기 링크(`↗`)를 제공합니다.
 - **독립형 및 OBS 오버레이 (`GET /chat` & `views/chat.ejs`)**:
   - **독립형 화면 (`/chat`)**: 사이드바를 통하지 않고 모바일이나 듀얼 모니터에서 별도로 띄워 채팅을 하거나 모니터링할 수 있는 심플한 채팅방 뷰.

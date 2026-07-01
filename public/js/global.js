@@ -61,6 +61,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatInput = document.getElementById('chatInput');
     
     let lastTimestamp = 0;
+    let oldestTimestamp = 0;
+    let hasMorePastChats = true;
+    let isChatLoadingMore = false;
     let chatTimeoutId = null;
     let idleTimerId = null;
     let isIdle = false;
@@ -70,6 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const POLL_RATE = 6000; // Active poll rate: 6 seconds
     const IDLE_LIMIT = 3 * 60 * 1000; // 3 minutes idle timeout
+
+    // Bind scroll event to load more past chat messages
+    if (chatBox) {
+        chatBox.addEventListener('scroll', () => {
+            if (chatBox.scrollTop === 0) {
+                loadMoreChatMessages();
+            }
+        });
+    }
 
     // Intersection Observer: stops polling when chat is out of view.
     const chatWidget = document.querySelector('.chat-widget');
@@ -130,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (lastTimestamp === 0) {
                     // Initial load: render all 20 messages
                     chatBox.innerHTML = newHTML;
+                    oldestTimestamp = messages[0].createdAt;
                 } else {
                     // Incremental update: append new messages only
                     chatBox.insertAdjacentHTML('beforeend', newHTML);
@@ -145,6 +158,70 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Chat load error:', err);
         } finally {
             isFetching = false;
+        }
+    }
+
+    async function loadMoreChatMessages() {
+        if (!chatBox || !hasMorePastChats || isChatLoadingMore) return;
+        
+        isChatLoadingMore = true;
+        
+        // Show a brief loading indicator at the top
+        const loadingIndicator = document.createElement('div');
+        loadingIndicator.id = 'chat-loading-more';
+        loadingIndicator.style = 'text-align: center; color: #888; font-size: 11px; padding: 5px 0; font-family: inherit;';
+        loadingIndicator.textContent = '이전 메아리 불러오는 중...';
+        chatBox.insertBefore(loadingIndicator, chatBox.firstChild);
+        
+        try {
+            const res = await fetch(`/chat/messages?before=${oldestTimestamp}`);
+            if (!res.ok) throw new Error('Failed to fetch past messages');
+            const messages = await res.json();
+            
+            // Remove indicator
+            const indicatorEl = document.getElementById('chat-loading-more');
+            if (indicatorEl) indicatorEl.remove();
+            
+            if (messages.length > 0) {
+                const newHTML = messages.map(msg => {
+                    const dateStr = new Date(msg.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const authorText = msg.authorNickname ? msg.authorNickname : `익명(${msg.authorIp})`;
+                    const authorStyle = msg.authorNickname ? 'style="color: var(--accent-color); font-weight: bold;"' : '';
+                    return `
+                        <div class="chat-msg">
+                            <div class="chat-msg-header">
+                                <span class="chat-msg-author" ${authorStyle}>${authorText}</span>
+                                <span class="chat-msg-time">${dateStr}</span>
+                            </div>
+                            <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+                const prevScrollHeight = chatBox.scrollHeight;
+                
+                // Prepend to chat container
+                chatBox.insertAdjacentHTML('afterbegin', newHTML);
+                
+                // Update oldest timestamp to the first item of the new batch
+                oldestTimestamp = messages[0].createdAt;
+                
+                // Keep scroll position relative to previous top position
+                chatBox.scrollTop = chatBox.scrollHeight - prevScrollHeight;
+            } else {
+                hasMorePastChats = false;
+                // Add a brief system notice that it's the end
+                const endNotice = document.createElement('div');
+                endNotice.style = 'text-align: center; color: #555; font-size: 10px; padding: 6px 0; font-style: italic;';
+                endNotice.textContent = '메아리의 시작점에 도달했습니다.';
+                chatBox.insertBefore(endNotice, chatBox.firstChild);
+            }
+        } catch (err) {
+            console.error('Failed to load more chats:', err);
+            const indicatorEl = document.getElementById('chat-loading-more');
+            if (indicatorEl) indicatorEl.remove();
+        } finally {
+            isChatLoadingMore = false;
         }
     }
 

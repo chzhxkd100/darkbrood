@@ -439,6 +439,7 @@ app.get('/', async (req, res) => {
         const noticesSnap = await db.collection('posts')
             .where('type', '==', 'notice')
             .orderBy('createdAt', 'desc')
+            .limit(5)
             .get();
         
         const notices = noticesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -896,6 +897,22 @@ async function getChatCache() {
 app.get('/chat/messages', async (req, res) => {
     try {
         const since = req.query.since ? parseInt(req.query.since, 10) : null;
+        const before = req.query.before ? parseInt(req.query.before, 10) : null;
+        
+        if (before && !isNaN(before)) {
+            // Fetch past messages directly from DB
+            const snapshot = await db.collection('chat')
+                .where('createdAt', '<', before)
+                .orderBy('createdAt', 'desc')
+                .limit(20)
+                .get();
+            const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const now = Date.now();
+            const filtered = rawMsgs.filter(msg => msg.expireAt > now);
+            // Reverse to make it ascending order
+            return res.json(filtered.reverse());
+        }
+
         const cache = await getChatCache();
         
         if (since && !isNaN(since)) {
