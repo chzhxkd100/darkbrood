@@ -358,7 +358,7 @@
           <div class="post-body diary-post-content" style="margin-top: 10px;">
             ${imageHTML}
             <div class="post-text-content">
-              ${post.content}
+              ${window.formatLinksAndEmbeds(window.escapeHTML(post.content))}
             </div>
           </div>
           ${deleteFormHTML}

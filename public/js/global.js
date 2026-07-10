@@ -1,4 +1,54 @@
+window.escapeHTML = function(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
+window.formatLinksAndEmbeds = function(escapedText) {
+    if (!escapedText) return '';
+    
+    // Regex for URLs
+    const urlRegex = /(https?:\/\/[^\s<]+)/g;
+    
+    return escapedText.replace(urlRegex, (url) => {
+        // Check if it's a YouTube link
+        const ytMatch = url.match(/^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i);
+        
+        if (ytMatch && ytMatch[1]) {
+            const videoId = ytMatch[1];
+            return `<div class="youtube-embed" style="position: relative; padding-bottom: 56.25%; height: 0; margin: 10px 0; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; max-width: 500px;"><iframe src="https://www.youtube.com/embed/${videoId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" frameborder="0" allowfullscreen></iframe></div><a href="${url}" target="_blank" style="color: var(--accent-color); text-decoration: underline; font-size: 11px;">[YouTube 링크]</a>`;
+        }
+        
+        // Check if it's an image link
+        const isImage = /\.(jpeg|jpg|gif|png|webp|bmp)(?:\?.*)?$/i.test(url);
+        if (isImage) {
+            return `<div class="embedded-image" style="margin: 10px 0;"><a href="${url}" class="lightbox-trigger" title="클릭하여 확대"><img src="${url}" style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);" alt="Embedded Image" /></a></div><a href="${url}" target="_blank" style="color: var(--accent-color); text-decoration: underline; font-size: 11px;">[이미지 링크]</a>`;
+        }
+
+        // Check if it's a video link (mp4, webm)
+        const isVideo = /\.(mp4|webm|ogg)(?:\?.*)?$/i.test(url);
+        if (isVideo) {
+            return `<div class="embedded-video" style="margin: 10px 0;"><video src="${url}" controls style="max-width: 100%; max-height: 300px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.1);"></video></div><a href="${url}" target="_blank" style="color: var(--accent-color); text-decoration: underline; font-size: 11px;">[비디오 링크]</a>`;
+        }
+        
+        // General link
+        return `<a href="${url}" target="_blank" style="color: var(--accent-color); text-decoration: underline;">${url}</a>`;
+    });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Process initial server-rendered text contents
+    document.querySelectorAll('.post-text-content, .comment-text, .chat-msg-content, .notice-brief-content, .diary-post-content').forEach(el => {
+        if (!el.dataset.formatted) {
+            el.innerHTML = window.formatLinksAndEmbeds(el.innerHTML);
+            el.dataset.formatted = 'true';
+        }
+    });
+
     // Format dates client-side to handle local timezone correctly
     document.querySelectorAll('.post-date, .comment-date').forEach(el => {
         const timestamp = el.getAttribute('data-timestamp');
@@ -134,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="chat-msg-author" ${authorStyle}>${authorText}</span>
                                 <span class="chat-msg-time">${dateStr}</span>
                             </div>
-                            <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
+                            <div class="chat-msg-content">${window.formatLinksAndEmbeds(window.escapeHTML(msg.content))}</div>
                         </div>
                     `;
                 }).join('');
@@ -193,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span class="chat-msg-author" ${authorStyle}>${authorText}</span>
                                 <span class="chat-msg-time">${dateStr}</span>
                             </div>
-                            <div class="chat-msg-content">${escapeHTML(msg.content)}</div>
+                            <div class="chat-msg-content">${window.formatLinksAndEmbeds(window.escapeHTML(msg.content))}</div>
                         </div>
                     `;
                 }).join('');
@@ -225,14 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function escapeHTML(str) {
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#039;');
-    }
+
 
     function scheduleNextChatPoll() {
         if (chatTimeoutId) clearTimeout(chatTimeoutId);
@@ -478,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         ${deleteFormHTML}
                                     </div>
                                     ${imageHTML}
-                                    <div class="comment-text" style="padding-left: 14px; color: var(--text-primary); font-size: 12px;">${escapeHTML(comment.content)}</div>
+                                    <div class="comment-text" style="padding-left: 14px; color: var(--text-primary); font-size: 12px;">${window.formatLinksAndEmbeds(window.escapeHTML(comment.content))}</div>
                                 </div>
                             `;
 
@@ -506,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         </div>
                                     </div>
                                     ${imageHTML}
-                                    <div class="comment-text" style="color: var(--text-primary); font-size: 12.5px;">${escapeHTML(comment.content)}</div>
+                                    <div class="comment-text" style="color: var(--text-primary); font-size: 12.5px;">${window.formatLinksAndEmbeds(window.escapeHTML(comment.content))}</div>
                                 </div>
                                 
                                 <div id="reply-form-${comment.id}" class="reply-form-container" style="display: none; margin-left: 20px; margin-top: 6px; margin-bottom: 10px;">

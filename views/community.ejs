@@ -568,7 +568,7 @@
           <div class="post-body ${hasMultipleClass}">
             ${imagesHTML}
             <div class="post-text-content">
-              ${post.content}
+              ${window.formatLinksAndEmbeds(window.escapeHTML(post.content))}
             </div>
           </div>
           <div class="comments-section styled-containers-layer-2 aero-borders" style="margin-top: 15px;">
