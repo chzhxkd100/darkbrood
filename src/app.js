@@ -888,8 +888,6 @@ async function getChatCache() {
             return [];
         }
     }
-    // Filter out expired messages (older than 24h)
-    chatCache = chatCache.filter(msg => msg.expireAt > now);
     return chatCache;
 }
 
@@ -907,10 +905,8 @@ app.get('/chat/messages', async (req, res) => {
                 .limit(20)
                 .get();
             const rawMsgs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            const now = Date.now();
-            const filtered = rawMsgs.filter(msg => msg.expireAt > now);
             // Reverse to make it ascending order
-            return res.json(filtered.reverse());
+            return res.json(rawMsgs.reverse());
         }
 
         const cache = await getChatCache();
@@ -938,13 +934,11 @@ app.post('/chat/send', async (req, res) => {
     }
     try {
         const createdAt = Date.now();
-        const expireAt = createdAt + 24 * 60 * 60 * 1000;
         
         const chatData = {
             content: content.substring(0, 100),
             authorIp: req.session.anonId || '익명',
-            createdAt,
-            expireAt
+            createdAt
         };
 
         if (req.session.user) {
