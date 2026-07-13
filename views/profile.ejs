@@ -66,7 +66,7 @@
                   <span style="font-size: 10px; text-transform: uppercase; color: var(--accent-color); font-weight: bold; border: 1px solid var(--accent-color); padding: 1.5px 5px; border-radius: 3px; margin-right: 8px; font-family: monospace;">
                     <%= post.type === 'diary' ? 'Diary' : (post.type === 'notice' ? 'Notice' : 'Community') %>
                   </span>
-                  <a href="<%= post.type === 'diary' ? '/diary' : (post.type === 'notice' ? '/notice' : '/community') %>#post-<%= post.id %>" style="font-weight: bold; color: #fff; font-size: 13.5px; text-decoration: none; word-break: break-all;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                  <a href="<%= post.type === 'diary' ? '/diary' : (post.type === 'notice' ? '/notice' : '/community') %>?page=<%= post.pageNum || 1 %>#post-<%= post.id %>" style="font-weight: bold; color: #fff; font-size: 13.5px; text-decoration: none; word-break: break-all;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
                     <%= post.title || '무제' %>
                   </a>
                   <p style="color: var(--text-secondary); font-size: 12px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; word-break: break-all;">

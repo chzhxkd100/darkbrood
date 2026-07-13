@@ -401,8 +401,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const urlParams = new URLSearchParams(window.location.search);
             const page = parseInt(urlParams.get('page')) || 1;
             const isFirstPage = page === 1;
+            const hasFilter = urlParams.has('searchQuery') || urlParams.has('author');
 
-            const targetType = isFirstPage ? type : null;
+            const targetType = (isFirstPage && !hasFilter) ? type : null;
             const postQuery = targetType ? `&type=${targetType}&since=${latestPostTimestamp}` : '';
             const commentQuery = postIds.length > 0 ? `&postIds=${JSON.stringify(postIds)}&commentsSince=${latestCommentTimestamp}` : '';
 

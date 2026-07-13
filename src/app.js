@@ -1201,6 +1201,19 @@ app.get('/profile/:id', async (req, res) => {
         
         const paginatedPosts = userPosts.slice(startIndex, endIndex);
             
+        // Calculate page number for each post
+        paginatedPosts.forEach(post => {
+            const sameTypePosts = allPosts
+                .filter(p => p.type === post.type)
+                .sort((a, b) => b.createdAt - a.createdAt);
+            const index = sameTypePosts.findIndex(p => p.id === post.id);
+            if (index !== -1) {
+                post.pageNum = Math.floor(index / 5) + 1; // 5 posts per page
+            } else {
+                post.pageNum = 1;
+            }
+        });
+
         const isOwnProfile = (req.session.user && req.session.user.id === userId) ? true : false;
         
         res.render('profile', { 
