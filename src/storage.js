@@ -45,6 +45,14 @@ if (useGCS) {
         ...(config.keyFilename && { keyFilename: config.keyFilename })
     });
     bucket = storageClient.bucket(config.bucket);
+    bucket.setCorsConfiguration([
+        {
+            maxAgeSeconds: 3600,
+            method: ['GET', 'HEAD'],
+            origin: ['*'],
+            responseHeader: ['Content-Type', 'Range', 'Accept-Ranges', 'Content-Range']
+        }
+    ]).catch(() => {});
 } else {
     console.log('Configuring local filesystem storage for image uploads...');
     const uploadDir = path.join(__dirname, '..', 'public', 'uploads');
