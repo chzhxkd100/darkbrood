@@ -5,8 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const db = require('./db');
-const { upload, getImageUrl, useGCS, bucket, uploadFileToGCS } = require('./storage');
 const os = require('os');
+const { upload, uploadAudio, deleteFileFromStorage, getImageUrl, useGCS, bucket, uploadFileToGCS } = require('./storage');
 
 // Helper to hash password using SHA-256
 function hashPassword(password) {
@@ -569,6 +569,19 @@ app.get('/notice', async (req, res) => {
     }
 });
 
+// Playlist (BGM management page)
+app.get('/playlist', async (req, res) => {
+    try {
+        const snap = await db.collection('bgm_tracks').get();
+        const tracks = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        tracks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        res.render('playlist', { tracks });
+    } catch (err) {
+        console.error('Error in GET /playlist:', err.stack || err);
+        res.render('playlist', { tracks: [] });
+    }
+});
+
 // Community (Anonymous board)
 app.get('/community', async (req, res) => {
     try {
@@ -890,6 +903,133 @@ async function getChatCache() {
     }
     return chatCache;
 }
+
+// ============================================================================
+// BGM (Background Music) Routes
+// ============================================================================
+
+// 1. Get BGM playlist
+app.get('/api/bgm/playlist', async (req, res) => {
+    try {
+        const snap = await db.collection('bgm_tracks').get();
+        const tracks = snap.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                title: data.title || '무제',
+                artist: data.artist || '익명',
+                fileUrl: data.fileUrl,
+                originalName: data.originalName || '',
+                fileSize: data.fileSize || 0,
+                uploaderName: data.uploaderName || '익명',
+                createdAt: data.createdAt || 0
+            };
+        });
+        // Sort newest first
+        tracks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        res.json({
+            success: true,
+            tracks,
+            isAdmin: !!req.session.isAdmin
+        });
+    } catch (e) {
+        console.error('Error fetching BGM playlist:', e);
+        res.status(500).json({ success: false, error: '재생 목록을 불러오지 못했습니다.' });
+    }
+});
+
+// 2. Upload BGM track(s) (supports single and multiple file uploads)
+app.post('/api/bgm/upload', (req, res, next) => {
+    uploadAudio.array('audio', 30)(req, res, (err) => {
+        if (err) {
+            console.error('Multer audio upload error:', err);
+            return res.status(400).json({ success: false, error: err.message || '오디오 파일 업로드 오류가 발생했습니다.' });
+        }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        const files = req.files || (req.file ? [req.file] : []);
+        if (files.length === 0) {
+            return res.status(400).json({ success: false, error: '업로드할 오디오 파일이 없습니다.' });
+        }
+
+        const customTitle = (req.body.title || '').trim();
+        const customArtist = (req.body.artist || '').trim();
+        const defaultArtist = req.session.user ? req.session.user.nickname : '익명';
+        const uploaderName = defaultArtist;
+        const uploaderId = req.session.user ? req.session.user.id : (req.session.anonId || 'anonymous');
+        const uploaderIp = req.ip || req.connection.remoteAddress || 'unknown';
+
+        const addedTracks = [];
+        const now = Date.now();
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            const parsed = path.parse(file.originalname);
+            // If single file and user entered title, use it. Otherwise use filename.
+            let title = (files.length === 1 && customTitle) ? customTitle : (parsed.name || '무제 음원');
+            let artist = customArtist || defaultArtist;
+            const fileUrl = getImageUrl(req, file);
+
+            const newTrack = {
+                title,
+                artist,
+                fileUrl,
+                originalName: file.originalname,
+                fileSize: file.size,
+                uploaderName,
+                uploaderId,
+                uploaderIp,
+                createdAt: now + i
+            };
+
+            const added = await db.collection('bgm_tracks').add(newTrack);
+            addedTracks.push({
+                id: added.id,
+                ...newTrack
+            });
+        }
+
+        res.json({
+            success: true,
+            track: addedTracks[0], // for single-track backwards compatibility
+            tracks: addedTracks,
+            count: addedTracks.length
+        });
+    } catch (e) {
+        console.error('Error saving uploaded BGM:', e);
+        res.status(500).json({ success: false, error: '음원 저장 중 서버 오류가 발생했습니다.' });
+    }
+});
+
+// 3. Delete BGM track (Admin only)
+app.post('/api/bgm/delete/:id', async (req, res) => {
+    try {
+        if (!req.session.isAdmin) {
+            return res.status(403).json({ success: false, error: '운영자만 음악을 삭제할 수 있습니다.' });
+        }
+
+        const trackId = req.params.id;
+        const docRef = db.collection('bgm_tracks').doc(trackId);
+        const snap = await docRef.get();
+
+        if (!snap.exists) {
+            return res.status(404).json({ success: false, error: '해당 음원을 찾을 수 없습니다.' });
+        }
+
+        const trackData = snap.data();
+        if (trackData && trackData.fileUrl) {
+            await deleteFileFromStorage(trackData.fileUrl);
+        }
+
+        await docRef.delete();
+        res.json({ success: true, message: '음원이 성공적으로 삭제되었습니다.' });
+    } catch (e) {
+        console.error('Error deleting BGM track:', e);
+        res.status(500).json({ success: false, error: '음원 삭제 중 오류가 발생했습니다.' });
+    }
+});
 
 // Get chat messages (reads from in-memory cache to save GCP costs)
 app.get('/chat/messages', async (req, res) => {

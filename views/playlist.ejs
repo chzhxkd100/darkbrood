@@ -1,0 +1,208 @@
+<%- include('header') %>
+
+<section>
+  <header>
+    <h1>플레이리스트 (Playlist)</h1>
+  </header>
+
+  <div style="margin-bottom: 20px;">
+    <button type="button" class="submit-btn" id="toggleUploadBtn" onclick="toggleUploadForm()">음원 추가</button>
+  </div>
+
+  <!-- Upload Form -->
+  <div id="uploadFormContainer" style="display: none; margin-bottom: 20px;">
+    <div class="glass-borders">
+      <div class="styled-containers aero-borders">
+        <h2>음원 추가</h2>
+        <form id="playlistUploadForm" enctype="multipart/form-data" class="post-form">
+          <div class="form-group">
+            <label for="pageBgmFile">오디오 파일 (MP3, WAV 등 여러 파일 선택 가능)</label>
+            <input type="file" name="audio" id="pageBgmFile" accept=".mp3,.wav,.ogg,.m4a,audio/*" required multiple class="file-input" />
+            <div id="fileSelectionNote" style="font-size: 11.5px; color: var(--accent-color); margin-top: 4px; display: none;"></div>
+          </div>
+          <div class="form-group">
+            <label for="pageBgmTitle">곡 제목 (선택, 파일 1개일 때 적용)</label>
+            <input type="text" name="title" id="pageBgmTitle" placeholder="제목 (미입력 시 파일명 사용)" maxlength="60" />
+          </div>
+          <div class="form-group">
+            <label for="pageBgmArtist">아티스트 (선택)</label>
+            <input type="text" name="artist" id="pageBgmArtist" placeholder="<%= locals.user ? user.nickname : '익명' %>" maxlength="40" />
+          </div>
+          <div id="pageBgmStatus" style="display: none; font-size: 12px; margin-top: 5px;"></div>
+          <button type="submit" id="pageBgmSubmitBtn" class="submit-btn" style="margin-top: 8px;">업로드</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Playlist Table -->
+  <div class="glass-borders">
+    <div class="styled-containers aero-borders">
+      <div class="playlist-table-wrapper" style="overflow-x: auto;">
+        <table class="playlist-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
+          <thead>
+            <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); text-align: left; color: var(--text-secondary); font-size: 12px;">
+              <th style="padding: 10px; width: 45px; text-align: center;">재생</th>
+              <th style="padding: 10px;">곡 제목</th>
+              <th style="padding: 10px;">아티스트</th>
+              <th style="padding: 10px;">등록자</th>
+              <th style="padding: 10px; width: 95px;">등록일</th>
+              <% if (isAdmin) { %>
+                <th style="padding: 10px; width: 55px; text-align: center;">삭제</th>
+              <% } %>
+            </tr>
+          </thead>
+          <tbody id="playlistTableBody">
+            <% if (tracks && tracks.length > 0) { %>
+              <% tracks.forEach((track) => { %>
+                <tr class="playlist-row" data-id="<%= track.id %>" onclick="window.playBgmTrackById('<%= track.id %>')">
+                  <td style="padding: 10px; text-align: center;">
+                    <button type="button" class="row-play-btn" title="Play">▶</button>
+                  </td>
+                  <td style="padding: 10px; font-weight: bold; color: var(--text-primary);">
+                    <span class="row-title"><%= track.title %></span>
+                  </td>
+                  <td style="padding: 10px; color: var(--text-secondary);"><%= track.artist %></td>
+                  <td style="padding: 10px; color: var(--text-secondary);"><%= track.uploaderName %></td>
+                  <td style="padding: 10px; font-size: 12px; color: #888;">
+                    <%= track.createdAt ? new Date(track.createdAt).toLocaleDateString('ko-KR') : '-' %>
+                  </td>
+                  <% if (isAdmin) { %>
+                    <td style="padding: 10px; text-align: center;" onclick="event.stopPropagation()">
+                      <button type="button" class="admin-del-btn" onclick="window.deleteBgmTrack('<%= track.id %>', event)">삭제</button>
+                    </td>
+                  <% } %>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr id="emptyPlaylistRow">
+                <td colspan="<%= isAdmin ? 6 : 5 %>" style="text-align: center; padding: 30px; color: #777;">
+                  등록된 음원이 없습니다.
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+window.toggleUploadForm = function() {
+  const container = document.getElementById('uploadFormContainer');
+  const btn = document.getElementById('toggleUploadBtn');
+  if (!container || !btn) return;
+  if (container.style.display === 'none') {
+    container.style.display = 'block';
+    btn.textContent = '작성 취소';
+  } else {
+    container.style.display = 'none';
+    btn.textContent = '음원 추가';
+  }
+};
+
+(function() {
+  const form = document.getElementById('playlistUploadForm');
+  const fileInput = document.getElementById('pageBgmFile');
+  const fileNote = document.getElementById('fileSelectionNote');
+  if (!form || !fileInput) return;
+
+  fileInput.addEventListener('change', function() {
+    const files = fileInput.files;
+    if (!files || files.length === 0) {
+      if (fileNote) fileNote.style.display = 'none';
+      return;
+    }
+    if (fileNote) {
+      fileNote.style.display = 'block';
+      if (files.length === 1) {
+        fileNote.textContent = `선택된 파일: ${files[0].name}`;
+      } else {
+        fileNote.textContent = `총 ${files.length}개의 파일이 선택되었습니다. (각 파일명이 곡 제목으로 자동 등록됩니다)`;
+      }
+    }
+  });
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!fileInput.files || fileInput.files.length === 0) {
+      alert('업로드할 오디오 파일을 선택해주세요.');
+      return;
+    }
+
+    const files = Array.from(fileInput.files);
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > 30 * 1024 * 1024) {
+        alert(`파일 "${files[i].name}"의 크기가 30MB를 초과합니다.`);
+        return;
+      }
+    }
+
+    const submitBtn = document.getElementById('pageBgmSubmitBtn');
+    const statusEl = document.getElementById('pageBgmStatus');
+    const fileCount = files.length;
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = fileCount > 1 ? `업로드 중... (${fileCount}곡)` : '업로드 중...';
+    }
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = 'var(--text-secondary)';
+      statusEl.textContent = fileCount > 1 ? `${fileCount}개의 음원을 서버에 등록 중입니다...` : '음원을 등록 중입니다...';
+    }
+
+    const formData = new FormData(form);
+
+    try {
+      const res = await fetch('/api/bgm/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.success && (data.tracks || data.track)) {
+        form.reset();
+        if (fileNote) fileNote.style.display = 'none';
+        if (statusEl) statusEl.style.display = 'none';
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '업로드';
+        }
+        window.toggleUploadForm();
+
+        const newTracks = data.tracks || [data.track];
+        if (window.addNewBgmTracks) {
+          window.addNewBgmTracks(newTracks);
+        } else if (window.addNewBgmTrack) {
+          window.addNewBgmTrack(newTracks[0]);
+        } else {
+          location.reload();
+        }
+      } else {
+        if (statusEl) {
+          statusEl.style.color = '#ff6b6b';
+          statusEl.textContent = data.error || '업로드 실패';
+        }
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = '업로드';
+        }
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      if (statusEl) {
+        statusEl.style.color = '#ff6b6b';
+        statusEl.textContent = '오류가 발생했습니다.';
+      }
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '업로드';
+      }
+    }
+  });
+})();
+</script>
+
+<%- include('footer') %>

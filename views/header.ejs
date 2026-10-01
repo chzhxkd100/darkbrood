@@ -8,10 +8,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- Dark Aero styling -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/css/global.css?v=1.1.0" />
+    <link rel="stylesheet" href="/css/global.css?v=1.2.0" />
   </head>
 
-  <body>
+  <body data-is-admin="<%= isAdmin ? 'true' : 'false' %>">
     <!-- Overlay for background aesthetics -->
     <div id="background"></div>
     
@@ -44,9 +44,27 @@
             <span class="header-motto">고독과 어둠 속에서 피어난 증오의 기록들.</span>
           </div>
         </div>
-        <div class="toggle-buttons-divs">
-          <span id="hideNavbarButtonText">Menu &gt;</span>
-          <button id="navbarToggleButton">☰</button>
+        <div class="header-right-area">
+          <!-- Ultra-compact Micro BGM Player -->
+          <div class="mp3-stick-player" id="bgmPlayerWidget">
+            <a href="/playlist" class="mp3-screen" id="mp3Screen" title="Manage">
+              <span class="mp3-icon" id="mp3Icon">♬</span>
+              <div class="mp3-ticker-viewport">
+                <span class="mp3-ticker-text" id="bgmTrackTitle">DarkBrood Abyss BGM</span>
+              </div>
+            </a>
+            <div class="mp3-controls">
+              <button type="button" class="mp3-btn mp3-play-btn" id="bgmPlayBtn" title="Play">▶</button>
+              <button type="button" class="mp3-btn" id="bgmNextBtn" title="Next">⏭</button>
+              <button type="button" class="mp3-btn" id="bgmMuteBtn" title="Mute">🔊</button>
+            </div>
+            <audio id="darkbroodAudio" preload="auto" crossorigin="anonymous"></audio>
+          </div>
+
+          <div class="toggle-buttons-divs">
+            <span id="hideNavbarButtonText">Menu &gt;</span>
+            <button id="navbarToggleButton">☰</button>
+          </div>
         </div>
       </header>
 

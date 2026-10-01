@@ -40,8 +40,8 @@ window.formatLinksAndEmbeds = function(escapedText) {
     });
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-    // Process initial server-rendered text contents
+window.reinitPageContents = function() {
+    // Process server-rendered text contents
     document.querySelectorAll('.post-text-content, .comment-text, .chat-msg-content, .notice-brief-content, .diary-post-content').forEach(el => {
         if (!el.dataset.formatted) {
             el.innerHTML = window.formatLinksAndEmbeds(el.innerHTML);
@@ -52,15 +52,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Format dates client-side to handle local timezone correctly
     document.querySelectorAll('.post-date, .comment-date').forEach(el => {
         const timestamp = el.getAttribute('data-timestamp');
-        if (timestamp) {
+        if (timestamp && !el.dataset.dateFormatted) {
             const date = new Date(parseInt(timestamp, 10));
             if (el.tagName === 'STRONG') {
                 el.textContent = date.toLocaleDateString('ko-KR');
             } else {
                 el.textContent = date.toLocaleString('ko-KR');
             }
+            el.dataset.dateFormatted = 'true';
         }
     });
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+    window.reinitPageContents();
 
     // ==========================================================================
     // 1. Mobile Menu Toggle
@@ -924,4 +929,600 @@ window.toggleReplyForm = function(id) {
         }
     }
 };
+
+// ==========================================================================
+// Dark Aero MP3 Stick Player & Seamless PJAX Navigation
+// ==========================================================================
+
+(function() {
+    let tracks = [];
+    let shuffleQueue = [];
+    let queueIndex = -1;
+    let currentTrack = null;
+    let isUserPaused = false;
+    let isAdmin = document.body && document.body.getAttribute('data-is-admin') === 'true';
+
+    const audio = document.getElementById('darkbroodAudio');
+    const playerWidget = document.getElementById('bgmPlayerWidget');
+    const playBtn = document.getElementById('bgmPlayBtn');
+    const prevBtn = document.getElementById('bgmPrevBtn');
+    const nextBtn = document.getElementById('bgmNextBtn');
+    const muteBtn = document.getElementById('bgmMuteBtn');
+    const volumeSlider = document.getElementById('bgmVolumeSlider');
+    const trackTitleEl = document.getElementById('bgmTrackTitle');
+    const mp3Icon = document.getElementById('mp3Icon');
+
+    if (!audio) return;
+
+    // Restore volume & mute state
+    const savedVol = localStorage.getItem('darkbrood_bgm_vol');
+    if (savedVol !== null) {
+        audio.volume = parseFloat(savedVol);
+        if (volumeSlider) volumeSlider.value = savedVol;
+    } else {
+        audio.volume = 0.5;
+        if (volumeSlider) volumeSlider.value = 0.5;
+    }
+
+    const savedMuted = localStorage.getItem('darkbrood_bgm_muted');
+    if (savedMuted === 'true') {
+        audio.muted = true;
+        updateMuteUI(true);
+    }
+
+    if (localStorage.getItem('darkbrood_bgm_paused') === 'true') {
+        isUserPaused = true;
+    }
+
+    // Fisher-Yates Shuffle
+    function generateShuffleQueue(length, keepCurrentTrackId = null) {
+        const arr = [];
+        for (let i = 0; i < length; i++) arr.push(i);
+        for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+
+        if (keepCurrentTrackId) {
+            const trackIdx = tracks.findIndex(t => t.id === keepCurrentTrackId);
+            if (trackIdx !== -1) {
+                const qPos = arr.indexOf(trackIdx);
+                if (qPos > -1) {
+                    arr.splice(qPos, 1);
+                    arr.unshift(trackIdx);
+                }
+            }
+        }
+        return arr;
+    }
+
+    // Synchronize Playlist Page Table UI
+    function updatePlaylistPageUI(isPlaying) {
+        document.querySelectorAll('.playlist-row').forEach(row => {
+            const isCurrent = currentTrack && row.dataset.id === currentTrack.id;
+            row.classList.toggle('active', isCurrent);
+            const btn = row.querySelector('.row-play-btn');
+            if (btn) {
+                btn.textContent = isCurrent && isPlaying ? '❚❚' : '▶';
+            }
+        });
+    }
+
+    // Fetch tracks and initialize
+    async function loadTracksAndInit() {
+        try {
+            const res = await fetch('/api/bgm/playlist');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.tracks)) {
+                tracks = data.tracks;
+                isAdmin = !!data.isAdmin;
+                if (document.body) {
+                    document.body.setAttribute('data-is-admin', isAdmin ? 'true' : 'false');
+                }
+
+                if (tracks.length === 0) {
+                    if (trackTitleEl) trackTitleEl.textContent = 'DarkBrood';
+                    return;
+                }
+
+                const savedTrackId = localStorage.getItem('darkbrood_bgm_track_id');
+                const savedTime = parseFloat(localStorage.getItem('darkbrood_bgm_time') || '0');
+
+                shuffleQueue = generateShuffleQueue(tracks.length, savedTrackId);
+                queueIndex = 0;
+
+                const initialTrack = tracks[shuffleQueue[0]];
+                loadTrack(initialTrack, false);
+
+                if (!isUserPaused) {
+                    if (savedTime > 0 && !isNaN(savedTime)) {
+                        audio.currentTime = savedTime;
+                    }
+                    attemptPlay();
+                } else {
+                    updatePlayStateUI(false);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load BGM playlist:', e);
+            if (trackTitleEl) trackTitleEl.textContent = 'BGM 플레이리스트 로드 오류';
+        }
+    }
+
+    // Load Track
+    function loadTrack(track, autoPlay = true) {
+        if (!track) return;
+        currentTrack = track;
+        audio.src = track.fileUrl;
+        audio.load();
+
+        if (trackTitleEl) {
+            const displayTitle = `${track.title} ── ${track.artist || '익명'} ── ♬ ── `;
+            trackTitleEl.textContent = displayTitle;
+            // Reset animation
+            trackTitleEl.style.animation = 'none';
+            trackTitleEl.offsetHeight; // trigger reflow
+            trackTitleEl.style.animation = 'neonSignTicker 14s linear infinite';
+        }
+
+        localStorage.setItem('darkbrood_bgm_track_id', track.id);
+
+        if (autoPlay && !isUserPaused) {
+            attemptPlay();
+        } else {
+            updatePlayStateUI(false);
+        }
+
+        updatePlaylistPageUI(!audio.paused);
+    }
+
+    // Web Audio API Loudness Normalizer (Dynamics Compressor & Makeup Gain)
+    // Automatically equalizes volume level across all tracks
+    let audioCtx = null;
+    let compressorNode = null;
+    let makeupGainNode = null;
+    let mediaSourceNode = null;
+
+    function ensureAudioNormalizer() {
+        try {
+            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioContextClass || !audio) return;
+
+            if (!audioCtx) {
+                audioCtx = new AudioContextClass();
+            }
+
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            if (!mediaSourceNode) {
+                mediaSourceNode = audioCtx.createMediaElementSource(audio);
+
+                // Broadcast-standard dynamics compressor
+                compressorNode = audioCtx.createDynamicsCompressor();
+                compressorNode.threshold.setValueAtTime(-24, audioCtx.currentTime);
+                compressorNode.knee.setValueAtTime(30, audioCtx.currentTime);
+                compressorNode.ratio.setValueAtTime(12, audioCtx.currentTime);
+                compressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
+                compressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
+
+                // Makeup gain (+2.5dB)
+                makeupGainNode = audioCtx.createGain();
+                makeupGainNode.gain.setValueAtTime(1.3, audioCtx.currentTime);
+
+                mediaSourceNode.connect(compressorNode);
+                compressorNode.connect(makeupGainNode);
+                makeupGainNode.connect(audioCtx.destination);
+            }
+        } catch (e) {
+            // Graceful fallback to default direct audio
+            console.log('Audio normalizer init info:', e);
+        }
+    }
+
+    // Autoplay attempt with user interaction fallback
+    function attemptPlay() {
+        ensureAudioNormalizer();
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                updatePlayStateUI(true);
+            }).catch(err => {
+                console.log('Autoplay blocked by browser, waiting for user gesture:', err);
+                updatePlayStateUI(false);
+
+                const unlockAudio = () => {
+                    ensureAudioNormalizer();
+                    if (!isUserPaused && audio.paused) {
+                        audio.play().then(() => {
+                            if (audioCtx && audioCtx.state === 'suspended') {
+                                audioCtx.resume();
+                            }
+                            updatePlayStateUI(true);
+                        }).catch(() => {});
+                    }
+                    document.removeEventListener('click', unlockAudio);
+                    document.removeEventListener('keydown', unlockAudio);
+                    document.removeEventListener('touchstart', unlockAudio);
+                };
+                document.addEventListener('click', unlockAudio);
+                document.addEventListener('keydown', unlockAudio);
+                document.addEventListener('touchstart', unlockAudio);
+            });
+        }
+    }
+
+    // Update Play UI
+    function updatePlayStateUI(isPlaying) {
+        if (playBtn) {
+            playBtn.textContent = isPlaying ? '❚❚' : '▶';
+            playBtn.title = isPlaying ? 'Pause' : 'Play';
+        }
+        if (playerWidget) {
+            playerWidget.classList.toggle('playing', isPlaying);
+        }
+        updatePlaylistPageUI(isPlaying);
+    }
+
+    // Update Mute UI
+    function updateMuteUI(isMuted) {
+        if (muteBtn) {
+            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+        }
+    }
+
+    // Next Track
+    function playNextTrack() {
+        if (tracks.length === 0) return;
+        queueIndex++;
+        if (queueIndex >= shuffleQueue.length) {
+            shuffleQueue = generateShuffleQueue(tracks.length);
+            queueIndex = 0;
+        }
+        const nextTrack = tracks[shuffleQueue[queueIndex]];
+        loadTrack(nextTrack, true);
+    }
+
+    // Prev Track
+    function playPrevTrack() {
+        if (tracks.length === 0) return;
+        queueIndex--;
+        if (queueIndex < 0) {
+            queueIndex = shuffleQueue.length - 1;
+        }
+        const prevTrack = tracks[shuffleQueue[queueIndex]];
+        loadTrack(prevTrack, true);
+    }
+
+    // Ended -> continuous infinite loop
+    audio.addEventListener('ended', playNextTrack);
+
+    // Save playback position periodically
+    audio.addEventListener('timeupdate', () => {
+        if (!audio.duration || isNaN(audio.duration)) return;
+        localStorage.setItem('darkbrood_bgm_time', Math.floor(audio.currentTime).toString());
+    });
+
+    audio.addEventListener('error', (e) => {
+        console.error('Audio playback error, skipping to next:', e);
+        setTimeout(() => {
+            if (tracks.length > 1) playNextTrack();
+        }, 1200);
+    });
+
+    // Play / Pause Toggle
+    if (playBtn) {
+        playBtn.addEventListener('click', () => {
+            if (tracks.length === 0) {
+                window.location.href = '/playlist';
+                return;
+            }
+            if (audio.paused) {
+                isUserPaused = false;
+                localStorage.setItem('darkbrood_bgm_paused', 'false');
+                attemptPlay();
+            } else {
+                audio.pause();
+                isUserPaused = true;
+                localStorage.setItem('darkbrood_bgm_paused', 'true');
+                updatePlayStateUI(false);
+            }
+        });
+    }
+
+    if (prevBtn) prevBtn.addEventListener('click', playPrevTrack);
+    if (nextBtn) nextBtn.addEventListener('click', playNextTrack);
+
+    if (muteBtn) {
+        muteBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            localStorage.setItem('darkbrood_bgm_muted', audio.muted ? 'true' : 'false');
+            updateMuteUI(audio.muted);
+        });
+    }
+
+    if (volumeSlider) {
+        volumeSlider.addEventListener('input', (e) => {
+            const val = parseFloat(e.target.value);
+            audio.volume = val;
+            if (audio.muted && val > 0) {
+                audio.muted = false;
+                updateMuteUI(false);
+            }
+            localStorage.setItem('darkbrood_bgm_vol', val.toString());
+        });
+    }
+
+    // Global hook: play specific track by ID
+    window.playBgmTrackById = function(id) {
+        if (currentTrack && currentTrack.id === id) {
+            // Toggle play/pause
+            if (audio.paused) {
+                isUserPaused = false;
+                localStorage.setItem('darkbrood_bgm_paused', 'false');
+                attemptPlay();
+            } else {
+                audio.pause();
+                isUserPaused = true;
+                localStorage.setItem('darkbrood_bgm_paused', 'true');
+                updatePlayStateUI(false);
+            }
+            return;
+        }
+
+        const trackIdx = tracks.findIndex(t => t.id === id);
+        if (trackIdx !== -1) {
+            isUserPaused = false;
+            localStorage.setItem('darkbrood_bgm_paused', 'false');
+            loadTrack(tracks[trackIdx], true);
+            shuffleQueue = generateShuffleQueue(tracks.length, id);
+            queueIndex = 0;
+        }
+    };
+
+    // Global hook: Add multiple newly uploaded tracks from playlist page
+    window.addNewBgmTracks = function(newTracks) {
+        if (!Array.isArray(newTracks)) newTracks = [newTracks];
+        if (newTracks.length === 0) return;
+
+        // Unshift in reverse order so the first uploaded track is at the top
+        for (let i = newTracks.length - 1; i >= 0; i--) {
+            tracks.unshift(newTracks[i]);
+        }
+        shuffleQueue = generateShuffleQueue(tracks.length, newTracks[0].id);
+        queueIndex = 0;
+
+        // Add rows to table if on /playlist page
+        const tbody = document.getElementById('playlistTableBody');
+        const emptyRow = document.getElementById('emptyPlaylistRow');
+        if (emptyRow) emptyRow.remove();
+
+        if (tbody) {
+            newTracks.forEach(newTrack => {
+                const dateStr = new Date(newTrack.createdAt).toLocaleDateString('ko-KR');
+                const safeTitle = window.escapeHTML(newTrack.title);
+                const safeArtist = window.escapeHTML(newTrack.artist);
+                const safeUploader = window.escapeHTML(newTrack.uploaderName);
+
+                let adminCol = '';
+                if (isAdmin) {
+                    adminCol = `<td style="padding: 10px; text-align: center;" onclick="event.stopPropagation()">
+                        <button type="button" class="admin-del-btn" onclick="window.deleteBgmTrack('${newTrack.id}', event)">삭제</button>
+                    </td>`;
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'playlist-row';
+                tr.dataset.id = newTrack.id;
+                tr.onclick = () => window.playBgmTrackById(newTrack.id);
+                tr.innerHTML = `
+                    <td style="padding: 10px; text-align: center;">
+                        <button type="button" class="row-play-btn" title="Play">▶</button>
+                    </td>
+                    <td style="padding: 10px; font-weight: bold; color: var(--text-primary);">
+                        <span class="row-title">${safeTitle}</span>
+                    </td>
+                    <td style="padding: 10px; color: var(--text-secondary);">${safeArtist}</td>
+                    <td style="padding: 10px; color: var(--text-secondary);">${safeUploader}</td>
+                    <td style="padding: 10px; font-size: 12px; color: #888;">${dateStr}</td>
+                    ${adminCol}
+                `;
+                tbody.insertBefore(tr, tbody.firstChild);
+            });
+
+            const totalEl = document.getElementById('pageTrackTotal');
+            if (totalEl) totalEl.textContent = tracks.length.toString();
+        }
+
+        // Start playing the first new track immediately
+        isUserPaused = false;
+        localStorage.setItem('darkbrood_bgm_paused', 'false');
+        loadTrack(newTracks[0], true);
+    };
+
+    window.addNewBgmTrack = function(singleTrack) {
+        window.addNewBgmTracks([singleTrack]);
+    };
+
+    // Global hook: Admin Delete Track
+    window.deleteBgmTrack = async function(id, event) {
+        if (event) event.stopPropagation();
+        if (!confirm('이 음원을 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/bgm/delete/${id}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const wasPlaying = currentTrack && currentTrack.id === id;
+                tracks = tracks.filter(t => t.id !== id);
+                shuffleQueue = generateShuffleQueue(tracks.length);
+                queueIndex = 0;
+
+                // Remove row from table
+                const row = document.querySelector(`.playlist-row[data-id="${id}"]`);
+                if (row) row.remove();
+
+                const totalEl = document.getElementById('pageTrackTotal');
+                if (totalEl) totalEl.textContent = tracks.length.toString();
+
+                if (tracks.length === 0) {
+                    audio.pause();
+                    audio.src = '';
+                    currentTrack = null;
+                    if (trackTitleEl) trackTitleEl.textContent = 'DarkBrood';
+                    updatePlayStateUI(false);
+                } else if (wasPlaying) {
+                    loadTrack(tracks[0], true);
+                }
+            } else {
+                alert(data.error || '음원 삭제 실패');
+            }
+        } catch (e) {
+            console.error('Delete error:', e);
+            alert('삭제 중 오류가 발생했습니다.');
+        }
+    };
+
+    // Initialize
+    loadTracksAndInit();
+
+    // Hook updatePlaylistPageUI on window for PJAX
+    window.updatePlaylistPageUI = updatePlaylistPageUI;
+})();
+
+// ==========================================================================
+// Seamless PJAX In-Page Navigation (Keep BGM Playing Across Pages)
+// ==========================================================================
+(function() {
+    function isInternalLink(a) {
+        if (!a || !a.href) return false;
+        if (a.target && a.target !== '_self') return false;
+        if (a.hasAttribute('download')) return false;
+        if (a.getAttribute('href').startsWith('#')) return false;
+        if (a.getAttribute('href').startsWith('javascript:')) return false;
+
+        const origin = window.location.origin;
+        if (!a.href.startsWith(origin)) return false;
+
+        const path = a.pathname;
+        if (path === '/logout' || path === '/admin' || path === '/chat' || path.startsWith('/uploads/')) {
+            return false;
+        }
+        return true;
+    }
+
+    async function loadPage(url, push = true) {
+        try {
+            const mainContent = document.getElementById('mainContent');
+            if (!mainContent) {
+                window.location.href = url;
+                return;
+            }
+
+            mainContent.style.opacity = '0.5';
+            mainContent.style.transition = 'opacity 0.15s ease';
+
+            const res = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+
+            if (!res.ok) {
+                window.location.href = url;
+                return;
+            }
+
+            const html = await res.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newMain = doc.getElementById('mainContent');
+            if (!newMain) {
+                window.location.href = url;
+                return;
+            }
+
+            if (doc.title) {
+                document.title = doc.title;
+            }
+
+            mainContent.innerHTML = newMain.innerHTML;
+            mainContent.style.opacity = '1';
+
+            // Execute inline scripts inside the new content
+            const scripts = mainContent.querySelectorAll('script');
+            scripts.forEach(oldScript => {
+                const newScript = document.createElement('script');
+                Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                newScript.textContent = oldScript.textContent;
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            });
+
+            // Update navigation menu active states
+            const currentPath = new URL(url, window.location.origin).pathname;
+            document.querySelectorAll('#navigationMenu a').forEach(navA => {
+                const navHref = navA.getAttribute('href');
+                if (navHref) {
+                    const navPath = new URL(navHref, window.location.origin).pathname;
+                    if (navPath === currentPath) {
+                        navA.classList.remove('nav-inactive');
+                        navA.classList.add('nav-active');
+                    } else if (navHref !== '/logout') {
+                        navA.classList.remove('nav-active');
+                        navA.classList.add('nav-inactive');
+                    }
+                }
+            });
+
+            // Re-run content formatters
+            if (window.reinitPageContents) {
+                window.reinitPageContents();
+            }
+
+            // If on playlist page, sync active row highlight
+            const audio = document.getElementById('darkbroodAudio');
+            if (window.updatePlaylistPageUI && audio) {
+                window.updatePlaylistPageUI(!audio.paused);
+            }
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            if (push) {
+                history.pushState({ pjax: true, url }, '', url);
+            }
+
+            // Close mobile menu if open
+            const asideMenu = document.querySelector('aside');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            if (asideMenu && asideMenu.classList.contains('open')) {
+                asideMenu.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            }
+        } catch (e) {
+            console.error('PJAX navigation error, falling back to full reload:', e);
+            window.location.href = url;
+        }
+    }
+
+    document.addEventListener('click', (e) => {
+        if (e.defaultPrevented) return;
+        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+        const a = e.target.closest('a');
+        if (a && isInternalLink(a)) {
+            e.preventDefault();
+            loadPage(a.href, true);
+        }
+    });
+
+    window.addEventListener('popstate', (e) => {
+        loadPage(window.location.href, false);
+    });
+})();
 
