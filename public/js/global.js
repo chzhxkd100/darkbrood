@@ -1048,7 +1048,8 @@ window.toggleReplyForm = function(id) {
         audio.load();
 
         if (trackTitleEl) {
-            const displayTitle = `${track.title} ── ${track.artist || '익명'} ── ♬ ── `;
+            const cleanArtist = (track.artist && track.artist !== '익명') ? track.artist.trim() : '';
+            const displayTitle = cleanArtist ? `${track.title} ── ${cleanArtist} ── ♬ ── ` : `${track.title} ── ♬ ── `;
             trackTitleEl.textContent = displayTitle;
             // Reset animation
             trackTitleEl.style.animation = 'none';
@@ -1267,7 +1268,8 @@ window.toggleReplyForm = function(id) {
             newTracks.forEach(newTrack => {
                 const dateStr = new Date(newTrack.createdAt).toLocaleDateString('ko-KR');
                 const safeTitle = window.escapeHTML(newTrack.title);
-                const safeArtist = window.escapeHTML(newTrack.artist);
+                const rawArtist = (newTrack.artist && newTrack.artist !== '익명') ? newTrack.artist.trim() : '';
+                const safeArtist = rawArtist ? window.escapeHTML(rawArtist) : '-';
                 const safeUploader = window.escapeHTML(newTrack.uploaderName);
 
                 let adminCol = '';

@@ -26,7 +26,7 @@
           </div>
           <div class="form-group">
             <label for="pageBgmArtist">아티스트 (선택)</label>
-            <input type="text" name="artist" id="pageBgmArtist" placeholder="<%= locals.user ? user.nickname : '익명' %>" maxlength="40" />
+            <input type="text" name="artist" id="pageBgmArtist" placeholder="아티스트 (선택사항, 미입력 시 제목만 표시)" maxlength="40" />
           </div>
           <div id="bgmUploadProgressWrap" style="display: none; margin-top: 14px; margin-bottom: 6px; padding: 12px 14px; background: rgba(5, 10, 8, 0.85); border: 1px solid rgba(57, 255, 20, 0.35); border-radius: 6px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(57, 255, 20, 0.15);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
@@ -47,7 +47,7 @@
   <!-- Playlist Table -->
   <div class="glass-borders">
     <div class="styled-containers aero-borders">
-      <div class="playlist-table-wrapper" style="overflow-x: auto;">
+      <div class="playlist-table-wrapper">
         <table class="playlist-table" style="width: 100%; border-collapse: collapse; font-size: 13px;">
           <thead>
             <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.15); text-align: left; color: var(--text-secondary); font-size: 12px;">
@@ -71,7 +71,7 @@
                   <td style="padding: 10px; font-weight: bold; color: var(--text-primary);">
                     <span class="row-title"><%= track.title %></span>
                   </td>
-                  <td style="padding: 10px; color: var(--text-secondary);"><%= track.artist %></td>
+                  <td style="padding: 10px; color: var(--text-secondary);"><%= (track.artist && track.artist !== '익명') ? track.artist : '-' %></td>
                   <td style="padding: 10px; color: var(--text-secondary);"><%= track.uploaderName %></td>
                   <td style="padding: 10px; font-size: 12px; color: #888;">
                     <%= track.createdAt ? new Date(track.createdAt).toLocaleDateString('ko-KR') : '-' %>

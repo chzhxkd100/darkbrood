@@ -614,11 +614,14 @@ app.get('/playlist', async (req, res) => {
             const data = doc.data();
             const fixedTitle = decodeMulterFilename(data.title || '무제');
             const fixedOriginal = decodeMulterFilename(data.originalName || '');
+            const rawArtist = (data.artist || '').trim();
+            const cleanArtist = (rawArtist === '익명') ? '' : rawArtist;
             return {
                 id: doc.id,
                 ...data,
                 title: fixedTitle,
-                originalName: fixedOriginal
+                originalName: fixedOriginal,
+                artist: cleanArtist
             };
         });
         tracks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -963,19 +966,22 @@ app.get('/api/bgm/playlist', async (req, res) => {
             const fixedTitle = decodeMulterFilename(rawTitle);
             const rawOriginal = data.originalName || '';
             const fixedOriginal = decodeMulterFilename(rawOriginal);
+            const rawArtist = (data.artist || '').trim();
+            const cleanArtist = (rawArtist === '익명') ? '' : rawArtist;
 
-            // Self-healing: if title in database was corrupted by Multer latin1 encoding, auto-update in background
-            if (fixedTitle !== rawTitle || fixedOriginal !== rawOriginal) {
-                doc.ref.update({
-                    title: fixedTitle,
-                    originalName: fixedOriginal
-                }).catch(err => console.warn('Self-healing title update warning:', err.message));
+            // Self-healing: if title in database was corrupted by Multer latin1 encoding or artist was '익명', auto-update in background
+            const updates = {};
+            if (fixedTitle !== rawTitle) updates.title = fixedTitle;
+            if (fixedOriginal !== rawOriginal) updates.originalName = fixedOriginal;
+            if (rawArtist === '익명') updates.artist = '';
+            if (Object.keys(updates).length > 0) {
+                doc.ref.update(updates).catch(err => console.warn('Self-healing title/artist update warning:', err.message));
             }
 
             return {
                 id: doc.id,
                 title: fixedTitle,
-                artist: data.artist || '익명',
+                artist: cleanArtist,
                 fileUrl: data.fileUrl,
                 originalName: fixedOriginal,
                 fileSize: data.fileSize || 0,
@@ -1014,8 +1020,8 @@ app.post('/api/bgm/upload', (req, res, next) => {
 
         const customTitle = (req.body.title || '').trim();
         const customArtist = (req.body.artist || '').trim();
-        const defaultArtist = req.session.user ? req.session.user.nickname : '익명';
-        const uploaderName = defaultArtist;
+        const defaultUploader = req.session.user ? req.session.user.nickname : '익명';
+        const uploaderName = defaultUploader;
         const uploaderId = req.session.user ? req.session.user.id : (req.session.anonId || 'anonymous');
         const uploaderIp = req.ip || req.connection.remoteAddress || 'unknown';
 
@@ -1028,7 +1034,8 @@ app.post('/api/bgm/upload', (req, res, next) => {
             const parsed = path.parse(cleanOriginalName);
             // If single file and user entered title, use it. Otherwise use clean filename.
             let title = (files.length === 1 && customTitle) ? customTitle : (parsed.name || '무제 음원');
-            let artist = customArtist || defaultArtist;
+            // If user left artist blank, DO NOT default to '익명'! Leave it empty.
+            let artist = customArtist;
 
             // Normalize audio volume on server (EBU R128) and encode to 192k MP3
             const { fileUrl, fileSize } = await processAndSaveAudio(file);
