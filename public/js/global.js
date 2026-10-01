@@ -75,9 +75,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     
     if (navbarToggleButton && asideMenu) {
+        const updateToggleState = (isOpen) => {
+            navbarToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            navbarToggleButton.textContent = isOpen ? '✕' : '☰';
+        };
+
+        const closeMobileSidebar = () => {
+            asideMenu.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            updateToggleState(false);
+        };
+
         navbarToggleButton.addEventListener('click', (e) => {
             e.stopPropagation();
             const isOpen = asideMenu.classList.toggle('open');
+            updateToggleState(isOpen);
             if (sidebarOverlay) {
                 if (isOpen) {
                     sidebarOverlay.classList.add('active');
@@ -90,20 +102,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (sidebarOverlay) {
             // Close menu when clicking the overlay
             sidebarOverlay.addEventListener('click', (e) => {
-                // Only close if click target is NOT inside the aside (extra safety)
                 if (!asideMenu.contains(e.target)) {
-                    asideMenu.classList.remove('open');
-                    sidebarOverlay.classList.remove('active');
+                    closeMobileSidebar();
                 }
             });
             // Support touchstart for fast response on mobile
-            // Must NOT be passive so we can call preventDefault when needed
             sidebarOverlay.addEventListener('touchstart', (e) => {
-                // Ignore touches that originate inside the sidebar itself
                 if (asideMenu.contains(e.target)) return;
                 e.preventDefault();
-                asideMenu.classList.remove('open');
-                sidebarOverlay.classList.remove('active');
+                closeMobileSidebar();
             }, { passive: false });
         }
     }

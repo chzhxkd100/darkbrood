@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- Dark Aero styling -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/css/global.css?v=1.2.4" />
+    <link rel="stylesheet" href="/css/global.css?v=1.2.5" />
   </head>
 
   <body data-is-admin="<%= isAdmin ? 'true' : 'false' %>">
@@ -69,7 +69,7 @@
 
           <div class="toggle-buttons-divs">
             <span id="hideNavbarButtonText">Menu &gt;</span>
-            <button id="navbarToggleButton">☰</button>
+            <button type="button" id="navbarToggleButton" aria-label="메뉴 열기/닫기" aria-expanded="false">☰</button>
           </div>
         </div>
       </header>
