@@ -28,7 +28,16 @@
             <label for="pageBgmArtist">아티스트 (선택)</label>
             <input type="text" name="artist" id="pageBgmArtist" placeholder="<%= locals.user ? user.nickname : '익명' %>" maxlength="40" />
           </div>
-          <div id="pageBgmStatus" style="display: none; font-size: 12px; margin-top: 5px;"></div>
+          <div id="bgmUploadProgressWrap" style="display: none; margin-top: 14px; margin-bottom: 6px; padding: 12px 14px; background: rgba(5, 10, 8, 0.85); border: 1px solid rgba(57, 255, 20, 0.35); border-radius: 6px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6), 0 0 10px rgba(57, 255, 20, 0.15);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span id="bgmProgressStage" style="font-size: 12px; font-weight: 600; color: #39ff14;">📤 파일 전송 준비 중...</span>
+              <span id="bgmProgressPercent" style="font-family: 'Consolas', 'Courier New', monospace; font-size: 13px; font-weight: bold; color: #39ff14; text-shadow: 0 0 5px rgba(57, 255, 20, 0.6);">0%</span>
+            </div>
+            <div style="width: 100%; height: 7px; background: rgba(255, 255, 255, 0.12); border-radius: 4px; overflow: hidden; position: relative;">
+              <div id="bgmProgressBar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #1db954, #39ff14); box-shadow: 0 0 8px #39ff14; transition: width 0.15s ease; border-radius: 4px;"></div>
+            </div>
+            <div id="bgmProgressDetail" style="font-size: 11px; color: var(--text-secondary); margin-top: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"></div>
+          </div>
           <button type="submit" id="pageBgmSubmitBtn" class="submit-btn" style="margin-top: 8px;">업로드</button>
         </form>
       </div>
@@ -124,7 +133,7 @@ window.toggleUploadForm = function() {
     }
   });
 
-  form.addEventListener('submit', async function(e) {
+  form.addEventListener('submit', function(e) {
     e.preventDefault();
     if (!fileInput.files || fileInput.files.length === 0) {
       alert('업로드할 오디오 파일을 선택해주세요.');
@@ -132,75 +141,165 @@ window.toggleUploadForm = function() {
     }
 
     const files = Array.from(fileInput.files);
+    let totalBytes = 0;
     for (let i = 0; i < files.length; i++) {
       if (files[i].size > 30 * 1024 * 1024) {
         alert(`파일 "${files[i].name}"의 크기가 30MB를 초과합니다.`);
         return;
       }
+      totalBytes += files[i].size;
     }
 
     const submitBtn = document.getElementById('pageBgmSubmitBtn');
-    const statusEl = document.getElementById('pageBgmStatus');
+    const progressWrap = document.getElementById('bgmUploadProgressWrap');
+    const stageEl = document.getElementById('bgmProgressStage');
+    const percentEl = document.getElementById('bgmProgressPercent');
+    const barEl = document.getElementById('bgmProgressBar');
+    const detailEl = document.getElementById('bgmProgressDetail');
     const fileCount = files.length;
 
     if (submitBtn) {
       submitBtn.disabled = true;
-      submitBtn.textContent = fileCount > 1 ? `업로드 중... (${fileCount}곡)` : '업로드 중...';
+      submitBtn.textContent = '처리 중...';
     }
-    if (statusEl) {
-      statusEl.style.display = 'block';
-      statusEl.style.color = 'var(--text-secondary)';
-      statusEl.textContent = fileCount > 1 ? `${fileCount}개의 음원을 서버에 등록 중입니다...` : '음원을 등록 중입니다...';
+
+    if (progressWrap) progressWrap.style.display = 'block';
+    if (barEl) {
+      barEl.style.width = '0%';
+      barEl.style.background = 'linear-gradient(90deg, #1db954, #39ff14)';
+    }
+    if (percentEl) percentEl.textContent = '0%';
+    if (stageEl) {
+      stageEl.style.color = '#39ff14';
+      stageEl.textContent = fileCount > 1 ? `📤 파일 업로드 중... (총 ${fileCount}곡)` : '📤 파일 업로드 중...';
+    }
+    if (detailEl) {
+      detailEl.style.color = 'var(--text-secondary)';
+      detailEl.textContent = `0.0 MB / ${(totalBytes / 1024 / 1024).toFixed(1)} MB`;
     }
 
     const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+    let normTimer = null;
 
-    try {
-      const res = await fetch('/api/bgm/upload', {
-        method: 'POST',
-        body: formData
-      });
-      const data = await res.json();
-
-      if (data.success && (data.tracks || data.track)) {
-        form.reset();
-        if (fileNote) fileNote.style.display = 'none';
-        if (statusEl) statusEl.style.display = 'none';
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = '업로드';
+    // Phase 1: Real-time File Upload
+    xhr.upload.onprogress = function(event) {
+      if (event.lengthComputable) {
+        const uploadPct = Math.round((event.loaded / event.total) * 100);
+        if (barEl) barEl.style.width = uploadPct + '%';
+        if (percentEl) percentEl.textContent = uploadPct + '%';
+        if (stageEl) {
+          stageEl.textContent = fileCount > 1 
+            ? `📤 파일 업로드 중... (${uploadPct}%)` 
+            : `📤 파일 업로드 중... (${uploadPct}%)`;
         }
-        window.toggleUploadForm();
-
-        const newTracks = data.tracks || [data.track];
-        if (window.addNewBgmTracks) {
-          window.addNewBgmTracks(newTracks);
-        } else if (window.addNewBgmTrack) {
-          window.addNewBgmTrack(newTracks[0]);
-        } else {
-          location.reload();
-        }
-      } else {
-        if (statusEl) {
-          statusEl.style.color = '#ff6b6b';
-          statusEl.textContent = data.error || '업로드 실패';
-        }
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = '업로드';
+        if (detailEl) {
+          detailEl.textContent = `${(event.loaded / 1024 / 1024).toFixed(1)} MB / ${(event.total / 1024 / 1024).toFixed(1)} MB 전송 완료`;
         }
       }
-    } catch (err) {
-      console.error('Upload error:', err);
-      if (statusEl) {
-        statusEl.style.color = '#ff6b6b';
-        statusEl.textContent = '오류가 발생했습니다.';
+    };
+
+    // Phase 2: Loudness Normalization (Loudnorm & MP3 Transcode on Server)
+    xhr.upload.onload = function() {
+      if (barEl) barEl.style.width = '0%';
+      if (percentEl) percentEl.textContent = '0%';
+      
+      const estimatedSec = Math.max(3.5, fileCount * 3.8);
+      const intervalMs = 90;
+      const totalSteps = (estimatedSec * 1000) / intervalMs;
+      let step = 0;
+
+      normTimer = setInterval(() => {
+        step++;
+        const ratio = 1 - Math.exp(-2.6 * (step / totalSteps));
+        const normPct = Math.min(96, Math.max(1, Math.round(ratio * 100)));
+
+        if (barEl) barEl.style.width = normPct + '%';
+        if (percentEl) percentEl.textContent = normPct + '%';
+
+        if (fileCount > 1) {
+          const currentTrackNum = Math.min(fileCount, Math.floor((normPct / 100) * fileCount) + 1);
+          if (stageEl) stageEl.textContent = `🎛️ [${currentTrackNum}/${fileCount}곡] 음량 평준화 분석 및 변환 중... (${normPct}%)`;
+          if (detailEl) detailEl.textContent = `EBU R128 표준 음량(-16 LUFS) 및 192kbps MP3 인코딩 중...`;
+        } else {
+          if (stageEl) stageEl.textContent = `🎛️ 음량 평준화 분석 및 변환 중... (${normPct}%)`;
+          if (detailEl) detailEl.textContent = `EBU R128 국제 표준(-16 LUFS) 및 192k MP3 인코딩 중...`;
+        }
+      }, intervalMs);
+    };
+
+    xhr.onload = function() {
+      if (normTimer) clearInterval(normTimer);
+
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && data.success) {
+          // Phase 3: Complete!
+          if (barEl) {
+            barEl.style.width = '100%';
+            barEl.style.background = 'linear-gradient(90deg, #39ff14, #00ffcc)';
+          }
+          if (percentEl) percentEl.textContent = '100%';
+          if (stageEl) {
+            stageEl.style.color = '#39ff14';
+            stageEl.textContent = '✨ 음량 평준화 및 등록 완료! (100%)';
+          }
+          if (detailEl) {
+            detailEl.textContent = fileCount > 1 
+              ? `총 ${fileCount}곡의 평준화 변환과 저장이 모두 완료되었습니다!` 
+              : '음원의 평준화 변환과 저장이 완료되었습니다!';
+          }
+
+          setTimeout(() => {
+            form.reset();
+            if (fileNote) fileNote.style.display = 'none';
+            if (progressWrap) progressWrap.style.display = 'none';
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = '업로드';
+            }
+            window.toggleUploadForm();
+
+            const newTracks = data.tracks || [data.track];
+            if (window.addNewBgmTracks) {
+              window.addNewBgmTracks(newTracks);
+            } else if (window.addNewBgmTrack) {
+              window.addNewBgmTrack(newTracks[0]);
+            } else {
+              location.reload();
+            }
+          }, 750);
+        } else {
+          showError(data.error || '음원 등록에 실패했습니다.');
+        }
+      } catch (err) {
+        showError('서버 응답 처리 중 오류가 발생했습니다.');
+      }
+    };
+
+    xhr.onerror = function() {
+      if (normTimer) clearInterval(normTimer);
+      showError('네트워크 오류가 발생했습니다.');
+    };
+
+    function showError(msg) {
+      if (barEl) barEl.style.background = '#ff6b6b';
+      if (stageEl) {
+        stageEl.style.color = '#ff6b6b';
+        stageEl.textContent = '❌ 등록 실패';
+      }
+      if (detailEl) {
+        detailEl.style.color = '#ff6b6b';
+        detailEl.textContent = msg;
       }
       if (submitBtn) {
         submitBtn.disabled = false;
-        submitBtn.textContent = '업로드';
+        submitBtn.textContent = '다시 시도';
       }
     }
+
+    xhr.open('POST', '/api/bgm/upload');
+    xhr.send(formData);
   });
 })();
 </script>
