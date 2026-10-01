@@ -78,6 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const updateToggleState = (isOpen) => {
             navbarToggleButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
             navbarToggleButton.textContent = isOpen ? '✕' : '☰';
+            if (isOpen) {
+                document.body.classList.add('sidebar-opened');
+            } else {
+                document.body.classList.remove('sidebar-opened');
+            }
         };
 
         const closeMobileSidebar = () => {
@@ -113,6 +118,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 closeMobileSidebar();
             }, { passive: false });
         }
+
+        // Auto close drawer when tapping internal navigation links on mobile
+        asideMenu.querySelectorAll('a').forEach((link) => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileSidebar();
+                }
+            });
+        });
     }
 
     // ==========================================================================

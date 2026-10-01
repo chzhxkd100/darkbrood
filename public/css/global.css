@@ -972,48 +972,69 @@ aside {
    Responsive Adaptation (Mobile View)
    ========================================================================== */
 @media (max-width: 768px) {
+    body {
+        /* On mobile, let the whole document scroll naturally */
+        overflow-x: hidden;
+        overflow-y: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+    }
+
+    body.sidebar-opened {
+        overflow: hidden;
+    }
+
     #websiteContainer {
         padding: 0;
         max-width: 100%;
+        margin: 0;
+        overflow-x: hidden;
     }
 
     .website-spacers {
         display: none;
     }
 
-    /* Fixed top header optimized for mobile */
+    /* Sticky top header: pinned at top during scroll, but part of normal document flow */
     #mainHeader {
-        height: 52px;
-        padding: 0 10px;
-        position: fixed;
+        position: sticky;
         top: 0;
         left: 0;
         width: 100%;
+        min-height: 52px;
+        height: auto;
         box-sizing: border-box;
         display: flex;
         align-items: center;
         justify-content: space-between;
-        z-index: 1005;
+        z-index: 1015;
         border-radius: 0;
         border-left: none;
         border-right: none;
         border-top: none;
         border-bottom: 1px solid var(--glass-border);
         background: var(--header-gradient);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        padding-top: max(8px, env(safe-area-inset-top, 0px));
+        padding-bottom: 8px;
+        padding-left: max(10px, env(safe-area-inset-left, 0px));
+        padding-right: max(10px, env(safe-area-inset-right, 0px));
     }
     
     .header-logo-text {
         display: flex;
         align-items: center;
-        flex-shrink: 0;
+        flex-shrink: 1;
         min-width: 0;
     }
 
     .header-logo-text svg,
     #logo {
-        width: 26px;
-        height: 26px;
+        width: 24px;
+        height: 24px;
         margin-right: 6px;
         flex-shrink: 0;
     }
@@ -1022,17 +1043,18 @@ aside {
         display: flex;
         flex-direction: column;
         min-width: 0;
+        flex-shrink: 1;
     }
 
     .header-title {
-        font-size: 14.5px;
+        font-size: 14px;
         font-weight: 700;
         line-height: 1.2;
         margin: 0;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        max-width: 110px;
+        max-width: 105px;
         letter-spacing: 0;
     }
     
@@ -1075,7 +1097,7 @@ aside {
     }
 
     .mp3-ticker-viewport {
-        width: 52px;
+        width: 46px;
         flex-shrink: 1;
     }
 
@@ -1138,75 +1160,99 @@ aside {
         box-shadow: 0 0 12px var(--accent-glow);
     }
     
-    /* Layout Container & Viewport Heights */
+    /* Layout Container & Natural Document Flow */
     #navAndContentContainer {
-        position: fixed;
-        top: 52px;
-        left: 0;
+        display: block;
         width: 100%;
-        height: calc(100vh - 52px);
-        height: calc(100dvh - 52px);
-        margin-top: 0;
-        gap: 0;
-        overflow: hidden;
-        z-index: 900;
+        margin: 0;
+        padding: 0;
+        position: static;
+        height: auto;
+        overflow: visible;
+        z-index: auto;
     }
 
+    /* Full-screen Backdrop Overlay for Sidebar */
     #sidebarOverlay {
         position: fixed;
-        top: 52px;
+        top: 0;
         left: 0;
         width: 100vw;
-        height: calc(100vh - 52px);
-        height: calc(100dvh - 52px);
-        background: rgba(0, 0, 0, 0.7);
-        backdrop-filter: blur(4px);
-        z-index: 1001;
-    }
-    
-    /* Slide-out Sidebar Drawer */
-    aside {
-        position: absolute;
-        left: -260px;
-        width: 260px;
-        max-width: 82vw;
-        overflow: hidden;
-        top: 0;
         height: 100%;
-        z-index: 1002;
-        transition: left 0.3s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+        height: 100dvh;
+        background: rgba(0, 0, 0, 0.75);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        z-index: 1010;
+        opacity: 0;
         visibility: hidden;
         pointer-events: none;
+        transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    #sidebarOverlay.active {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+    }
+    
+    /* Off-Canvas Slide-out Sidebar Drawer */
+    aside {
+        position: fixed;
+        top: 0;
+        left: -280px;
+        width: 280px;
+        max-width: 82vw;
+        height: 100%;
+        height: 100dvh;
+        z-index: 1012;
+        transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), visibility 0.3s ease;
+        transform: translateX(0);
+        visibility: hidden;
+        pointer-events: none;
+        overflow: hidden;
+        background: transparent;
     }
     
     aside.open {
-        left: 0;
+        transform: translateX(280px);
         visibility: visible;
         pointer-events: auto;
-        box-shadow: 4px 0 25px rgba(0, 0, 0, 0.85);
     }
     
     #navigationMenu {
         height: 100%;
-        border-radius: 0;
-        min-height: auto;
+        height: 100dvh;
         box-sizing: border-box;
         width: 100%;
         overflow-y: auto;
-        padding-bottom: 80px;
         -webkit-overflow-scrolling: touch;
+        border-radius: 0;
+        border-left: none;
+        border-top: none;
+        border-bottom: none;
+        border-right: 1px solid var(--glass-border);
+        box-shadow: 6px 0 25px rgba(0, 0, 0, 0.9);
+        padding-top: calc(56px + env(safe-area-inset-top, 10px));
+        padding-bottom: calc(50px + env(safe-area-inset-bottom, 30px));
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
-    /* Main Scrollable Content Area */
+    /* Main Natural Flow Content Area */
     #mainContent {
-        height: 100%;
-        border-radius: 0;
-        overflow-y: auto;
+        display: block;
         width: 100%;
+        height: auto;
+        min-height: calc(100vh - 60px);
+        min-height: calc(100dvh - 60px);
         box-sizing: border-box;
-        padding: 10px 10px 80px 10px;
-        -webkit-overflow-scrolling: touch;
-        min-height: auto;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        padding: 12px 10px calc(80px + env(safe-area-inset-bottom, 20px)) 10px;
+        overflow: visible;
     }
 
     /* Card Panels & Containers on Mobile */
@@ -1270,10 +1316,20 @@ aside {
         padding: 8px 4px;
     }
 
+    .comment-form {
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .comment-input {
+        min-width: 180px;
+    }
+
     /* Modal responsiveness */
     .modal-wrapper {
         width: 95%;
         max-height: 85vh;
+        max-height: 85dvh;
     }
 
     .modal-body {
@@ -1314,12 +1370,12 @@ aside {
 /* Extra small mobile devices (<= 360px) */
 @media (max-width: 360px) {
     .header-title {
-        max-width: 82px;
-        font-size: 13px;
+        max-width: 72px;
+        font-size: 12.5px;
     }
 
     .mp3-ticker-viewport {
-        width: 36px;
+        width: 32px;
     }
 
     #bgmVolumeControl {
