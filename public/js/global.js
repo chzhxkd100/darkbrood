@@ -1076,72 +1076,19 @@ window.toggleReplyForm = function(id) {
         updatePlaylistPageUI(!audio.paused);
     }
 
-    // Web Audio API Loudness Normalizer (Dynamics Compressor & Makeup Gain)
-    // Automatically equalizes volume level across all tracks
-    let audioCtx = null;
-    let compressorNode = null;
-    let makeupGainNode = null;
-    let mediaSourceNode = null;
-
-    function ensureAudioNormalizer() {
-        try {
-            const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContextClass || !audio) return;
-
-            if (!audioCtx) {
-                audioCtx = new AudioContextClass();
-            }
-
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-
-            if (!mediaSourceNode) {
-                mediaSourceNode = audioCtx.createMediaElementSource(audio);
-
-                // Broadcast-standard dynamics compressor
-                compressorNode = audioCtx.createDynamicsCompressor();
-                compressorNode.threshold.setValueAtTime(-24, audioCtx.currentTime);
-                compressorNode.knee.setValueAtTime(30, audioCtx.currentTime);
-                compressorNode.ratio.setValueAtTime(12, audioCtx.currentTime);
-                compressorNode.attack.setValueAtTime(0.003, audioCtx.currentTime);
-                compressorNode.release.setValueAtTime(0.25, audioCtx.currentTime);
-
-                // Makeup gain (+2.5dB)
-                makeupGainNode = audioCtx.createGain();
-                makeupGainNode.gain.setValueAtTime(1.3, audioCtx.currentTime);
-
-                mediaSourceNode.connect(compressorNode);
-                compressorNode.connect(makeupGainNode);
-                makeupGainNode.connect(audioCtx.destination);
-            }
-        } catch (e) {
-            // Graceful fallback to default direct audio
-            console.log('Audio normalizer init info:', e);
-        }
-    }
-
     // Autoplay attempt with user interaction fallback
     function attemptPlay() {
-        ensureAudioNormalizer();
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                if (audioCtx && audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
                 updatePlayStateUI(true);
             }).catch(err => {
                 console.log('Autoplay blocked by browser, waiting for user gesture:', err);
                 updatePlayStateUI(false);
 
                 const unlockAudio = () => {
-                    ensureAudioNormalizer();
                     if (!isUserPaused && audio.paused) {
                         audio.play().then(() => {
-                            if (audioCtx && audioCtx.state === 'suspended') {
-                                audioCtx.resume();
-                            }
                             updatePlayStateUI(true);
                         }).catch(() => {});
                     }

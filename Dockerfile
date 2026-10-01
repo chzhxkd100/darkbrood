@@ -4,6 +4,9 @@ FROM node:18-slim
 # App directory
 WORKDIR /usr/src/app
 
+# Install system packages (ffmpeg for server-side audio normalization)
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 COPY package*.json ./
 RUN npm install --only=production

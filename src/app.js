@@ -6,7 +6,7 @@ const fs = require('fs');
 const multer = require('multer');
 const db = require('./db');
 const os = require('os');
-const { upload, uploadAudio, deleteFileFromStorage, getImageUrl, useGCS, bucket, uploadFileToGCS } = require('./storage');
+const { upload, uploadAudio, deleteFileFromStorage, getImageUrl, useGCS, bucket, uploadFileToGCS, processAndSaveAudio } = require('./storage');
 
 // Helper to hash password using SHA-256
 function hashPassword(password) {
@@ -970,14 +970,16 @@ app.post('/api/bgm/upload', (req, res, next) => {
             // If single file and user entered title, use it. Otherwise use filename.
             let title = (files.length === 1 && customTitle) ? customTitle : (parsed.name || '무제 음원');
             let artist = customArtist || defaultArtist;
-            const fileUrl = getImageUrl(req, file);
+
+            // Normalize audio volume on server (EBU R128) and encode to 192k MP3
+            const { fileUrl, fileSize } = await processAndSaveAudio(file);
 
             const newTrack = {
                 title,
                 artist,
                 fileUrl,
                 originalName: file.originalname,
-                fileSize: file.size,
+                fileSize,
                 uploaderName,
                 uploaderId,
                 uploaderIp,
