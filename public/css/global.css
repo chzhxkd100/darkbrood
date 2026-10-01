@@ -1872,6 +1872,72 @@ aside {
     box-shadow: 0 0 6px var(--accent-glow) !important;
 }
 
+/* Volume Control on Hover */
+.mp3-volume-control {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.mp3-volume-slider-box {
+    width: 0;
+    opacity: 0;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, margin 0.22s ease;
+    margin-left: 0;
+    pointer-events: none;
+}
+
+.mp3-volume-control:hover .mp3-volume-slider-box,
+.mp3-volume-control:focus-within .mp3-volume-slider-box {
+    width: 54px;
+    opacity: 1;
+    margin-left: 3px;
+    margin-right: 2px;
+    pointer-events: auto;
+}
+
+.mp3-vol-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 50px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+}
+
+.mp3-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #39ff14;
+    box-shadow: 0 0 5px #39ff14;
+    cursor: pointer;
+    transition: transform 0.1s;
+}
+
+.mp3-vol-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.25);
+}
+
+.mp3-vol-slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #39ff14;
+    border: none;
+    box-shadow: 0 0 5px #39ff14;
+    cursor: pointer;
+}
+
 /* Playlist Page Table Styles */
 .playlist-table {
     border-collapse: collapse;
@@ -1942,8 +2008,8 @@ aside {
     .mp3-ticker-viewport {
         width: 85px;
     }
-    .mp3-vol-slider {
-        display: none;
+    .mp3-volume-slider-box {
+        display: none !important;
     }
     .header-right-area {
         gap: 6px;

@@ -1115,11 +1115,17 @@ window.toggleReplyForm = function(id) {
         updatePlaylistPageUI(isPlaying);
     }
 
-    // Update Mute UI
+    // Update Mute UI & Volume Slider state
     function updateMuteUI(isMuted) {
         if (muteBtn) {
-            muteBtn.textContent = isMuted ? '🔇' : '🔊';
+            muteBtn.textContent = isMuted ? '🔇' : (audio.volume === 0 ? '🔇' : (audio.volume < 0.4 ? '🔉' : '🔊'));
             muteBtn.title = isMuted ? 'Unmute' : 'Mute';
+        }
+        if (volumeSlider) {
+            volumeSlider.style.opacity = isMuted ? '0.4' : '1';
+            if (!isMuted) {
+                volumeSlider.value = audio.volume;
+            }
         }
     }
 
@@ -1186,9 +1192,14 @@ window.toggleReplyForm = function(id) {
     if (nextBtn) nextBtn.addEventListener('click', playNextTrack);
 
     if (muteBtn) {
-        muteBtn.addEventListener('click', () => {
+        muteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
             audio.muted = !audio.muted;
             localStorage.setItem('darkbrood_bgm_muted', audio.muted ? 'true' : 'false');
+            if (!audio.muted && audio.volume === 0) {
+                audio.volume = 0.5;
+                localStorage.setItem('darkbrood_bgm_vol', '0.5');
+            }
             updateMuteUI(audio.muted);
         });
     }
@@ -1197,8 +1208,15 @@ window.toggleReplyForm = function(id) {
         volumeSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             audio.volume = val;
-            if (audio.muted && val > 0) {
-                audio.muted = false;
+            if (val === 0) {
+                audio.muted = true;
+                localStorage.setItem('darkbrood_bgm_muted', 'true');
+                updateMuteUI(true);
+            } else {
+                if (audio.muted) {
+                    audio.muted = false;
+                    localStorage.setItem('darkbrood_bgm_muted', 'false');
+                }
                 updateMuteUI(false);
             }
             localStorage.setItem('darkbrood_bgm_vol', val.toString());
