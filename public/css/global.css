@@ -1872,39 +1872,73 @@ aside {
     box-shadow: 0 0 6px var(--accent-glow) !important;
 }
 
-/* Volume Control on Hover */
+/* Volume Control Floating Dropdown beneath Mute Button */
 .mp3-volume-control {
     position: relative;
     display: inline-flex;
     align-items: center;
 }
 
-.mp3-volume-slider-box {
-    width: 0;
-    opacity: 0;
-    overflow: hidden;
-    display: inline-flex;
+.mp3-volume-dropdown {
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    display: flex;
     align-items: center;
-    transition: width 0.22s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, margin 0.22s ease;
-    margin-left: 0;
+    gap: 7px;
+    background: rgba(10, 16, 12, 0.96);
+    border: 1px solid rgba(57, 255, 20, 0.38);
+    border-radius: 6px;
+    padding: 6px 9px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.85), 0 0 8px rgba(57, 255, 20, 0.18);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
     pointer-events: none;
+    white-space: nowrap;
 }
 
-.mp3-volume-control:hover .mp3-volume-slider-box,
-.mp3-volume-control:focus-within .mp3-volume-slider-box {
-    width: 54px;
+/* Invisible bridge so mouse hover doesn't flicker when moving between button and dropdown */
+.mp3-volume-dropdown::after {
+    content: '';
+    position: absolute;
+    top: -10px;
+    left: 0;
+    right: 0;
+    height: 10px;
+}
+
+/* Little pointer arrow pointing up to the mute button */
+.mp3-volume-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
+    background: rgba(10, 16, 12, 0.96);
+    border-top: 1px solid rgba(57, 255, 20, 0.38);
+    border-left: 1px solid rgba(57, 255, 20, 0.38);
+    transform: rotate(45deg);
+}
+
+.mp3-volume-control:hover .mp3-volume-dropdown,
+.mp3-volume-control:focus-within .mp3-volume-dropdown {
     opacity: 1;
-    margin-left: 3px;
-    margin-right: 2px;
+    visibility: visible;
+    transform: translateY(0);
     pointer-events: auto;
 }
 
 .mp3-vol-slider {
     -webkit-appearance: none;
     appearance: none;
-    width: 50px;
+    width: 65px;
     height: 4px;
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.22);
     border-radius: 2px;
     outline: none;
     cursor: pointer;
@@ -1915,8 +1949,8 @@ aside {
 .mp3-vol-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     background: #39ff14;
     box-shadow: 0 0 5px #39ff14;
@@ -1929,13 +1963,24 @@ aside {
 }
 
 .mp3-vol-slider::-moz-range-thumb {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     background: #39ff14;
     border: none;
     box-shadow: 0 0 5px #39ff14;
     cursor: pointer;
+}
+
+.mp3-vol-pct {
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: #39ff14;
+    text-shadow: 0 0 3px rgba(57, 255, 20, 0.6);
+    min-width: 26px;
+    text-align: right;
+    line-height: 1;
 }
 
 /* Playlist Page Table Styles */

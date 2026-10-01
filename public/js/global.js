@@ -936,8 +936,7 @@ window.toggleReplyForm = function(id) {
 
 (function() {
     let tracks = [];
-    let shuffleQueue = [];
-    let queueIndex = -1;
+    let currentIndex = 0;
     let currentTrack = null;
     let isUserPaused = false;
     let isAdmin = document.body && document.body.getAttribute('data-is-admin') === 'true';
@@ -949,6 +948,7 @@ window.toggleReplyForm = function(id) {
     const nextBtn = document.getElementById('bgmNextBtn');
     const muteBtn = document.getElementById('bgmMuteBtn');
     const volumeSlider = document.getElementById('bgmVolumeSlider');
+    const volumePct = document.getElementById('bgmVolumePct');
     const trackTitleEl = document.getElementById('bgmTrackTitle');
     const mp3Icon = document.getElementById('mp3Icon');
 
@@ -964,6 +964,10 @@ window.toggleReplyForm = function(id) {
         if (volumeSlider) volumeSlider.value = 0.5;
     }
 
+    if (volumePct) {
+        volumePct.textContent = Math.round(audio.volume * 100) + '%';
+    }
+
     const savedMuted = localStorage.getItem('darkbrood_bgm_muted');
     if (savedMuted === 'true') {
         audio.muted = true;
@@ -972,28 +976,6 @@ window.toggleReplyForm = function(id) {
 
     if (localStorage.getItem('darkbrood_bgm_paused') === 'true') {
         isUserPaused = true;
-    }
-
-    // Fisher-Yates Shuffle
-    function generateShuffleQueue(length, keepCurrentTrackId = null) {
-        const arr = [];
-        for (let i = 0; i < length; i++) arr.push(i);
-        for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]];
-        }
-
-        if (keepCurrentTrackId) {
-            const trackIdx = tracks.findIndex(t => t.id === keepCurrentTrackId);
-            if (trackIdx !== -1) {
-                const qPos = arr.indexOf(trackIdx);
-                if (qPos > -1) {
-                    arr.splice(qPos, 1);
-                    arr.unshift(trackIdx);
-                }
-            }
-        }
-        return arr;
     }
 
     // Synchronize Playlist Page Table UI
@@ -1028,10 +1010,16 @@ window.toggleReplyForm = function(id) {
                 const savedTrackId = localStorage.getItem('darkbrood_bgm_track_id');
                 const savedTime = parseFloat(localStorage.getItem('darkbrood_bgm_time') || '0');
 
-                shuffleQueue = generateShuffleQueue(tracks.length, savedTrackId);
-                queueIndex = 0;
+                let initialIdx = 0;
+                if (savedTrackId) {
+                    const foundIdx = tracks.findIndex(t => t.id === savedTrackId);
+                    if (foundIdx !== -1) {
+                        initialIdx = foundIdx;
+                    }
+                }
+                currentIndex = initialIdx;
 
-                const initialTrack = tracks[shuffleQueue[0]];
+                const initialTrack = tracks[currentIndex];
                 loadTrack(initialTrack, false);
 
                 if (!isUserPaused) {
@@ -1053,6 +1041,9 @@ window.toggleReplyForm = function(id) {
     function loadTrack(track, autoPlay = true) {
         if (!track) return;
         currentTrack = track;
+        currentIndex = tracks.findIndex(t => t.id === track.id);
+        if (currentIndex === -1) currentIndex = 0;
+
         audio.src = track.fileUrl;
         audio.load();
 
@@ -1127,29 +1118,33 @@ window.toggleReplyForm = function(id) {
                 volumeSlider.value = audio.volume;
             }
         }
+        if (volumePct) {
+            volumePct.textContent = isMuted ? '0%' : Math.round(audio.volume * 100) + '%';
+        }
     }
 
-    // Next Track
+    // Next Track (Sequential traversal: plays next track in playlist, cycles without repeat)
     function playNextTrack() {
         if (tracks.length === 0) return;
-        queueIndex++;
-        if (queueIndex >= shuffleQueue.length) {
-            shuffleQueue = generateShuffleQueue(tracks.length);
-            queueIndex = 0;
+        if (tracks.length === 1) {
+            audio.currentTime = 0;
+            attemptPlay();
+            return;
         }
-        const nextTrack = tracks[shuffleQueue[queueIndex]];
-        loadTrack(nextTrack, true);
+        currentIndex = (currentIndex + 1) % tracks.length;
+        loadTrack(tracks[currentIndex], true);
     }
 
     // Prev Track
     function playPrevTrack() {
         if (tracks.length === 0) return;
-        queueIndex--;
-        if (queueIndex < 0) {
-            queueIndex = shuffleQueue.length - 1;
+        if (tracks.length === 1) {
+            audio.currentTime = 0;
+            attemptPlay();
+            return;
         }
-        const prevTrack = tracks[shuffleQueue[queueIndex]];
-        loadTrack(prevTrack, true);
+        currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
+        loadTrack(tracks[currentIndex], true);
     }
 
     // Ended -> continuous infinite loop
@@ -1208,6 +1203,9 @@ window.toggleReplyForm = function(id) {
         volumeSlider.addEventListener('input', (e) => {
             const val = parseFloat(e.target.value);
             audio.volume = val;
+            if (volumePct) {
+                volumePct.textContent = Math.round(val * 100) + '%';
+            }
             if (val === 0) {
                 audio.muted = true;
                 localStorage.setItem('darkbrood_bgm_muted', 'true');
@@ -1244,9 +1242,8 @@ window.toggleReplyForm = function(id) {
         if (trackIdx !== -1) {
             isUserPaused = false;
             localStorage.setItem('darkbrood_bgm_paused', 'false');
-            loadTrack(tracks[trackIdx], true);
-            shuffleQueue = generateShuffleQueue(tracks.length, id);
-            queueIndex = 0;
+            currentIndex = trackIdx;
+            loadTrack(tracks[currentIndex], true);
         }
     };
 
@@ -1259,8 +1256,7 @@ window.toggleReplyForm = function(id) {
         for (let i = newTracks.length - 1; i >= 0; i--) {
             tracks.unshift(newTracks[i]);
         }
-        shuffleQueue = generateShuffleQueue(tracks.length, newTracks[0].id);
-        queueIndex = 0;
+        currentIndex = 0;
 
         // Add rows to table if on /playlist page
         const tbody = document.getElementById('playlistTableBody');
@@ -1327,8 +1323,6 @@ window.toggleReplyForm = function(id) {
             if (data.success) {
                 const wasPlaying = currentTrack && currentTrack.id === id;
                 tracks = tracks.filter(t => t.id !== id);
-                shuffleQueue = generateShuffleQueue(tracks.length);
-                queueIndex = 0;
 
                 // Remove row from table
                 const row = document.querySelector(`.playlist-row[data-id="${id}"]`);
@@ -1341,10 +1335,14 @@ window.toggleReplyForm = function(id) {
                     audio.pause();
                     audio.src = '';
                     currentTrack = null;
+                    currentIndex = 0;
                     if (trackTitleEl) trackTitleEl.textContent = 'DarkBrood';
                     updatePlayStateUI(false);
                 } else if (wasPlaying) {
-                    loadTrack(tracks[0], true);
+                    if (currentIndex >= tracks.length) currentIndex = 0;
+                    loadTrack(tracks[currentIndex], true);
+                } else {
+                    currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
                 }
             } else {
                 alert(data.error || '음원 삭제 실패');

@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <!-- Dark Aero styling -->
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="stylesheet" href="/css/global.css?v=1.2.2" />
+    <link rel="stylesheet" href="/css/global.css?v=1.2.3" />
   </head>
 
   <body data-is-admin="<%= isAdmin ? 'true' : 'false' %>">
@@ -58,8 +58,9 @@
               <button type="button" class="mp3-btn" id="bgmNextBtn" title="Next">⏭</button>
               <div class="mp3-volume-control" id="bgmVolumeControl">
                 <button type="button" class="mp3-btn" id="bgmMuteBtn" title="Mute">🔊</button>
-                <div class="mp3-volume-slider-box" id="bgmVolumeSliderBox">
+                <div class="mp3-volume-dropdown" id="bgmVolumeDropdown">
                   <input type="range" class="mp3-vol-slider" id="bgmVolumeSlider" min="0" max="1" step="0.02" value="0.5" title="Volume" />
+                  <span class="mp3-vol-pct" id="bgmVolumePct">50%</span>
                 </div>
               </div>
             </div>
