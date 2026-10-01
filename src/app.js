@@ -569,11 +569,58 @@ app.get('/notice', async (req, res) => {
     }
 });
 
+// Map Windows-1252 / ISO-8859-1 byte mappings that occur when Multer misinterprets UTF-8 bytes in multipart headers
+const cp1252Map = {
+    0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84,
+    0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88,
+    0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C,
+    0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93,
+    0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+    0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+    0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F
+};
+
+function decodeMulterFilename(filename) {
+    if (!filename) return '';
+    try {
+        const bytes = [];
+        let hasHighBytes = false;
+        for (let i = 0; i < filename.length; i++) {
+            const code = filename.charCodeAt(i);
+            if (code <= 255) {
+                bytes.push(code);
+                if (code >= 0x80) hasHighBytes = true;
+            } else if (cp1252Map[code] !== undefined) {
+                bytes.push(cp1252Map[code]);
+                hasHighBytes = true;
+            } else {
+                return filename; // Genuine Unicode outside 1-byte charset
+            }
+        }
+        if (!hasHighBytes) return filename;
+        const decoded = Buffer.from(bytes).toString('utf8');
+        if (!decoded.includes('\uFFFD') && decoded !== filename) {
+            return decoded;
+        }
+    } catch (e) {}
+    return filename;
+}
+
 // Playlist (BGM management page)
 app.get('/playlist', async (req, res) => {
     try {
         const snap = await db.collection('bgm_tracks').get();
-        const tracks = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const tracks = snap.docs.map(doc => {
+            const data = doc.data();
+            const fixedTitle = decodeMulterFilename(data.title || '무제');
+            const fixedOriginal = decodeMulterFilename(data.originalName || '');
+            return {
+                id: doc.id,
+                ...data,
+                title: fixedTitle,
+                originalName: fixedOriginal
+            };
+        });
         tracks.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         res.render('playlist', { tracks });
     } catch (err) {
@@ -906,20 +953,31 @@ async function getChatCache() {
 
 // ============================================================================
 // BGM (Background Music) Routes
-// ============================================================================
-
 // 1. Get BGM playlist
 app.get('/api/bgm/playlist', async (req, res) => {
     try {
         const snap = await db.collection('bgm_tracks').get();
         const tracks = snap.docs.map(doc => {
             const data = doc.data();
+            const rawTitle = data.title || '무제';
+            const fixedTitle = decodeMulterFilename(rawTitle);
+            const rawOriginal = data.originalName || '';
+            const fixedOriginal = decodeMulterFilename(rawOriginal);
+
+            // Self-healing: if title in database was corrupted by Multer latin1 encoding, auto-update in background
+            if (fixedTitle !== rawTitle || fixedOriginal !== rawOriginal) {
+                doc.ref.update({
+                    title: fixedTitle,
+                    originalName: fixedOriginal
+                }).catch(err => console.warn('Self-healing title update warning:', err.message));
+            }
+
             return {
                 id: doc.id,
-                title: data.title || '무제',
+                title: fixedTitle,
                 artist: data.artist || '익명',
                 fileUrl: data.fileUrl,
-                originalName: data.originalName || '',
+                originalName: fixedOriginal,
                 fileSize: data.fileSize || 0,
                 uploaderName: data.uploaderName || '익명',
                 createdAt: data.createdAt || 0
@@ -966,8 +1024,9 @@ app.post('/api/bgm/upload', (req, res, next) => {
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
-            const parsed = path.parse(file.originalname);
-            // If single file and user entered title, use it. Otherwise use filename.
+            const cleanOriginalName = decodeMulterFilename(file.originalname);
+            const parsed = path.parse(cleanOriginalName);
+            // If single file and user entered title, use it. Otherwise use clean filename.
             let title = (files.length === 1 && customTitle) ? customTitle : (parsed.name || '무제 음원');
             let artist = customArtist || defaultArtist;
 
@@ -978,7 +1037,7 @@ app.post('/api/bgm/upload', (req, res, next) => {
                 title,
                 artist,
                 fileUrl,
-                originalName: file.originalname,
+                originalName: cleanOriginalName,
                 fileSize,
                 uploaderName,
                 uploaderId,
