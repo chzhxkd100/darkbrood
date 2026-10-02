@@ -959,6 +959,9 @@ window.toggleReplyForm = function(id) {
     let tracks = [];
     let currentIndex = 0;
     let currentTrack = null;
+    let playedTrackIds = new Set();
+    const playbackHistory = [];
+    const playedTracksKey = 'darkbrood_bgm_played_track_ids';
     let isUserPaused = false;
     let isAdmin = document.body && document.body.getAttribute('data-is-admin') === 'true';
 
@@ -1031,20 +1034,21 @@ window.toggleReplyForm = function(id) {
                 const savedTrackId = localStorage.getItem('darkbrood_bgm_track_id');
                 const savedTime = parseFloat(localStorage.getItem('darkbrood_bgm_time') || '0');
 
-                let initialIdx = 0;
-                if (savedTrackId) {
-                    const foundIdx = tracks.findIndex(t => t.id === savedTrackId);
-                    if (foundIdx !== -1) {
-                        initialIdx = foundIdx;
+                try {
+                    const savedIds = JSON.parse(localStorage.getItem(playedTracksKey) || '[]');
+                    if (Array.isArray(savedIds)) {
+                        playedTrackIds = new Set(savedIds.filter(id => tracks.some(t => t.id === id)));
                     }
+                } catch (e) {
+                    playedTrackIds.clear();
                 }
-                currentIndex = initialIdx;
 
-                const initialTrack = tracks[currentIndex];
+                const resumedTrack = tracks.find(t => t.id === savedTrackId);
+                const initialTrack = resumedTrack || pickNextTrack();
                 loadTrack(initialTrack, false);
 
                 if (!isUserPaused) {
-                    if (savedTime > 0 && !isNaN(savedTime)) {
+                    if (resumedTrack && savedTime > 0 && !isNaN(savedTime)) {
                         audio.currentTime = savedTime;
                     }
                     attemptPlay();
@@ -1061,7 +1065,13 @@ window.toggleReplyForm = function(id) {
     // Load Track
     function loadTrack(track, autoPlay = true) {
         if (!track) return;
+        if (currentTrack && currentTrack.id !== track.id) {
+            playbackHistory.push(currentTrack.id);
+        }
         currentTrack = track;
+        playedTrackIds.add(track.id);
+        localStorage.setItem(playedTracksKey, JSON.stringify([...playedTrackIds]));
+        localStorage.setItem('darkbrood_bgm_time', '0');
         currentIndex = tracks.findIndex(t => t.id === track.id);
         if (currentIndex === -1) currentIndex = 0;
 
@@ -1145,28 +1155,41 @@ window.toggleReplyForm = function(id) {
         }
     }
 
-    // Next Track (Sequential traversal: plays next track in playlist, cycles without repeat)
+    // Draw only from unplayed tracks; start a fresh cycle once all have been used.
+    function pickNextTrack() {
+        let candidates = tracks.filter(track => !playedTrackIds.has(track.id));
+        if (candidates.length === 0) {
+            playedTrackIds.clear();
+            candidates = tracks;
+            // Avoid repeating the last track at the boundary between cycles.
+            if (tracks.length > 1 && currentTrack) {
+                candidates = tracks.filter(track => track.id !== currentTrack.id);
+            }
+        }
+        return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+
+    // Both the Next button and automatic advance share the same random cycle.
     function playNextTrack() {
         if (tracks.length === 0) return;
-        if (tracks.length === 1) {
-            audio.currentTime = 0;
-            attemptPlay();
-            return;
-        }
-        currentIndex = (currentIndex + 1) % tracks.length;
-        loadTrack(tracks[currentIndex], true);
+        loadTrack(pickNextTrack(), true);
     }
 
     // Prev Track
     function playPrevTrack() {
         if (tracks.length === 0) return;
-        if (tracks.length === 1) {
-            audio.currentTime = 0;
-            attemptPlay();
-            return;
+        while (playbackHistory.length > 0) {
+            const previousId = playbackHistory.pop();
+            const previousTrack = tracks.find(track => track.id === previousId);
+            if (previousTrack) {
+                // Revisiting history does not make already played tracks eligible for Next.
+                currentTrack = null;
+                loadTrack(previousTrack, true);
+                return;
+            }
         }
-        currentIndex = (currentIndex - 1 + tracks.length) % tracks.length;
-        loadTrack(tracks[currentIndex], true);
+        audio.currentTime = 0;
+        if (!isUserPaused) attemptPlay();
     }
 
     // Ended -> continuous infinite loop
@@ -1346,6 +1369,8 @@ window.toggleReplyForm = function(id) {
             if (data.success) {
                 const wasPlaying = currentTrack && currentTrack.id === id;
                 tracks = tracks.filter(t => t.id !== id);
+                playedTrackIds.delete(id);
+                localStorage.setItem(playedTracksKey, JSON.stringify([...playedTrackIds]));
 
                 // Remove row from table
                 const row = document.querySelector(`.playlist-row[data-id="${id}"]`);
@@ -1362,8 +1387,7 @@ window.toggleReplyForm = function(id) {
                     if (trackTitleEl) trackTitleEl.textContent = 'DarkBrood';
                     updatePlayStateUI(false);
                 } else if (wasPlaying) {
-                    if (currentIndex >= tracks.length) currentIndex = 0;
-                    loadTrack(tracks[currentIndex], true);
+                    playNextTrack();
                 } else {
                     currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
                 }
